@@ -8,11 +8,15 @@
   'use strict';
 
   // ── Config ─────────────────────────────────────────────────────────────────
-  const params   = new URLSearchParams(window.location.search);
-  const LOC      = params.get('loc') || 'the-gulch';
-  const BEV_PATH = `./data/bev-${LOC}.json`;
-  const ADD_PATH = './addons.json';
-  const REFRESH  = 5 * 60 * 1000;  // 5 minutes
+  const params     = new URLSearchParams(window.location.search);
+  const LOC        = params.get('loc') || 'the-gulch';
+  const BEV_PATH   = `./data/bev-${LOC}.json`;
+  const ADD_PATH   = './addons.json';
+  // Real-time availability overrides — written by admin page, read directly from
+  // the raw GitHub URL so changes propagate within minutes without a full deploy.
+  const OVERRIDES_URL = 'https://raw.githubusercontent.com/jwal7000/menu-display-beverages/main/public/overrides.json';
+  const REFRESH    = 5 * 60 * 1000;  // 5 minutes (full menu)
+  const OV_REFRESH = 60 * 1000;      // 1 minute  (availability overrides)
 
   // Section → column index (0-3)
   const SECTION_COL = {
@@ -46,7 +50,11 @@
 
   // ── Render item row ──────────────────────────────────────────────────────────
   function renderItem(item) {
-    const row   = el('div', `item-row${item.available === false ? ' unavailable' : ''}`);
+    // Apply real-time override if present, else use config's available field
+    const available = overridesData.hasOwnProperty(item.name)
+      ? overridesData[item.name]
+      : item.available;
+    const row   = el('div', `item-row${available === false ? ' unavailable' : ''}`);
     const name  = el('span', 'item-name', item.name);
     const lead  = el('span', 'item-leader');
     const price = el('span', 'item-price', item.price || '');
@@ -118,7 +126,24 @@
   }
 
   // ── Main render ──────────────────────────────────────────────────────────────
-  let addonsData = null;
+  let addonsData    = null;
+  let overridesData = {}; // item name → true/false
+
+  async function fetchOverrides() {
+    try {
+      const res = await fetch(OVERRIDES_URL + '?t=' + Date.now());
+      if (res.ok) {
+        const d = await res.json();
+        // Filter to only boolean values (ignore metadata keys starting with _)
+        overridesData = Object.fromEntries(
+          Object.entries(d).filter(([k, v]) => !k.startsWith('_') && typeof v === 'boolean')
+        );
+        if (Object.keys(overridesData).length) {
+          console.log('[bev] overrides active:', overridesData);
+        }
+      }
+    } catch (_) { /* silently keep previous overrides */ }
+  }
 
   async function render() {
     // Fetch addons if not loaded
@@ -166,7 +191,8 @@
   }
 
   // ── Boot ─────────────────────────────────────────────────────────────────────
-  render().catch(() => {});
-  setInterval(() => render().catch(() => {}), REFRESH);
+  fetchOverrides().then(() => render()).catch(() => {});
+  setInterval(() => render().catch(() => {}),         REFRESH);
+  setInterval(() => fetchOverrides().catch(() => {}), OV_REFRESH);
 
 })();

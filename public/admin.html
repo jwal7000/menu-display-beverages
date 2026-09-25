@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FDB Beverage Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fdf6fa;
+      color: #2a2520;
+      min-height: 100dvh;
+    }
+    .screen { display: none; padding: 28px 20px; max-width: 480px; margin: 0 auto; }
+    .screen.active { display: block; }
+
+    .logo { text-align: center; margin-bottom: 20px; }
+    .logo img { height: 60px; }
+    h1 { font-size: 1.3rem; font-weight: 700; color: #d48a9e; margin-bottom: 6px; }
+    .subtitle { font-size: 0.9rem; color: #888; margin-bottom: 24px; }
+
+    input[type="password"], input[type="text"] {
+      width: 100%; padding: 15px; font-size: 1.1rem;
+      border: 2px solid #e8aabb; border-radius: 10px;
+      background: white; margin-bottom: 12px;
+      -webkit-appearance: none;
+    }
+    input:focus { outline: none; border-color: #d48a9e; }
+
+    .btn {
+      width: 100%; padding: 15px; font-size: 1rem; font-weight: 700;
+      background: #e8aabb; color: white; border: none; border-radius: 10px;
+      cursor: pointer; letter-spacing: 0.04em;
+    }
+    .btn:active { background: #d48a9e; transform: scale(0.98); }
+    .btn.secondary { background: white; color: #d48a9e; border: 2px solid #e8aabb; margin-top: 10px; }
+    .btn.danger { background: #f0a0a0; margin-top: 10px; }
+
+    /* Item list */
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #d48a9e;
+      margin: 24px 0 10px;
+    }
+    .item-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 0; border-bottom: 1px solid #f0e8ec; gap: 10px;
+    }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 1rem; }
+    .item-price { font-size: 0.82rem; color: #aaa; }
+    .item-row.off .item-name { opacity: 0.4; text-decoration: line-through; }
+
+    /* Toggle switch */
+    .toggle { flex-shrink: 0; position: relative; width: 54px; height: 30px; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .slider {
+      position: absolute; inset: 0;
+      background: #ddd; border-radius: 30px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .slider::before {
+      content: ''; position: absolute;
+      width: 22px; height: 22px; left: 4px; top: 4px;
+      background: white; border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked + .slider { background: #e8aabb; }
+    .toggle input:checked + .slider::before { transform: translateX(24px); }
+
+    /* Status */
+    #status {
+      margin-top: 16px; padding: 14px; border-radius: 10px;
+      font-size: 0.9rem; text-align: center; display: none;
+    }
+    .status-loading { display: block !important; background: #fff3cd; color: #856404; }
+    .status-ok      { display: block !important; background: #d4edda; color: #155724; }
+    .status-error   { display: block !important; background: #f8d7da; color: #721c24; }
+
+    .save-area { position: sticky; bottom: 0; background: #fdf6fa; padding: 16px 0 20px; }
+    .small-link { text-align: center; font-size: 0.78rem; color: #bbb; cursor: pointer; margin-top: 20px; padding-bottom: 32px; }
+    .small-link:active { color: #d48a9e; }
+  </style>
+</head>
+<body>
+
+<!-- ── Setup screen (one-time access code entry) ── -->
+<div class="screen" id="screen-setup">
+  <div class="logo"><img src="logo.png" alt="Five Daughters Bakery" /></div>
+  <h1>Admin Setup</h1>
+  <p class="subtitle">First-time setup on this device. Enter the admin access code below — you'll only need to do this once.</p>
+  <input type="password" id="setup-token" placeholder="Admin access code" autocomplete="off" />
+  <button class="btn" onclick="saveToken()">Save & Continue</button>
+</div>
+
+<!-- ── PIN screen ── -->
+<div class="screen" id="screen-pin">
+  <div class="logo"><img src="logo.png" alt="Five Daughters Bakery" /></div>
+  <h1>Beverage Menu</h1>
+  <p class="subtitle">Enter PIN to manage drink availability.</p>
+  <input type="password" id="pin-input" placeholder="PIN" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
+  <button class="btn" onclick="checkPin()">Enter</button>
+</div>
+
+<!-- ── Admin screen ── -->
+<div class="screen" id="screen-admin">
+  <h1>Drink Availability</h1>
+  <p class="subtitle">Toggle drinks on or off. Changes appear on the display within 2–3 minutes.</p>
+  <div id="item-list">
+    <p class="subtitle" style="text-align:center;padding:20px 0">Loading…</p>
+  </div>
+  <div class="save-area">
+    <button class="btn" onclick="saveChanges()">Save Changes</button>
+    <div id="status"></div>
+  </div>
+  <div class="small-link" onclick="resetAll()">Reset all drinks to available</div>
+  <div class="small-link" onclick="changeCode()">Change access code</div>
+</div>
+
+<script>
+'use strict';
+
+// ── Config ──────────────────────────────────────────────────────────────────
+const REPO          = 'jwal7000/menu-display-beverages';
+const CONFIG_RAW    = `https://raw.githubusercontent.com/${REPO}/main/output/bev-items-config.json`;
+const OVERRIDES_API = `https://api.github.com/repos/${REPO}/contents/public/overrides.json`;
+// SHA-256 of "2026" — change this if PIN changes
+const PIN_SHA256    = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab';
+
+// ── Token storage ────────────────────────────────────────────────────────────
+const getToken = () => localStorage.getItem('fdb_bev_token') || '';
+const setToken = t  => localStorage.setItem('fdb_bev_token', t);
+const clearToken = () => localStorage.removeItem('fdb_bev_token');
+
+// ── Screens ──────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.addEventListener('load', () => {
+  showScreen(getToken() ? 'screen-pin' : 'screen-setup');
+  document.getElementById('pin-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkPin();
+  });
+});
+
+function saveToken() {
+  const t = document.getElementById('setup-token').value.trim();
+  if (!t) { alert('Please enter the admin access code.'); return; }
+  setToken(t);
+  document.getElementById('setup-token').value = '';
+  showScreen('screen-pin');
+}
+
+function changeCode() {
+  if (!confirm('Clear saved access code and set up again?')) return;
+  clearToken();
+  showScreen('screen-setup');
+}
+
+// ── PIN ──────────────────────────────────────────────────────────────────────
+async function sha256(str) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkPin() {
+  const pin  = document.getElementById('pin-input').value.trim();
+  const hash = await sha256(pin);
+  if (hash !== PIN_SHA256) { alert('Incorrect PIN. Try again.'); return; }
+  document.getElementById('pin-input').value = '';
+  showScreen('screen-admin');
+  loadItems();
+}
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+let configData    = null;
+let overrideState = {};  // item name → true/false (override) or undefined (follow config)
+let fileSha       = null;
+
+function apiHeaders() {
+  return {
+    Authorization: `token ${getToken()}`,
+    Accept: 'application/vnd.github+json',
+  };
+}
+
+async function loadItems() {
+  setStatus('Loading…', 'loading');
+  try {
+    const [cfgRes, ovRes] = await Promise.all([
+      fetch(CONFIG_RAW + '?t=' + Date.now()),
+      fetch(OVERRIDES_API, { headers: apiHeaders() }),
+    ]);
+
+    if (!cfgRes.ok) throw new Error('Could not load beverage config.');
+    configData = await cfgRes.json();
+
+    if (ovRes.ok) {
+      const ovData = await ovRes.json();
+      if (ovData.sha) {
+        fileSha = ovData.sha;
+        const raw = JSON.parse(atob(ovData.content.replace(/\n/g, '')));
+        // Keep only boolean entries (filter metadata keys)
+        overrideState = Object.fromEntries(
+          Object.entries(raw).filter(([k, v]) => !k.startsWith('_') && typeof v === 'boolean')
+        );
+      }
+    } else if (ovRes.status === 401) {
+      clearToken();
+      alert('Access code is invalid. Please re-enter it.');
+      showScreen('screen-setup');
+      return;
+    }
+
+    setStatus('', '');
+    renderItems();
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function getEffectiveAvail(itemName, configAvail) {
+  return overrideState.hasOwnProperty(itemName)
+    ? overrideState[itemName]
+    : (configAvail !== false);
+}
+
+function renderItems() {
+  const list = document.getElementById('item-list');
+  list.innerHTML = '';
+
+  for (const sec of configData.sections) {
+    const hdr = document.createElement('div');
+    hdr.className = 'section-label';
+    hdr.textContent = sec.name;
+    list.appendChild(hdr);
+
+    const allItems = [
+      ...(sec.items || []),
+      ...(sec.sub_sections || []).flatMap(s => s.items || []),
+    ];
+
+    for (const item of allItems) {
+      const avail = getEffectiveAvail(item.name, item.available);
+      list.appendChild(buildRow(item, avail));
+    }
+  }
+}
+
+function buildRow(item, available) {
+  const row = document.createElement('div');
+  row.className = `item-row${available ? '' : ' off'}`;
+  row.dataset.item = item.name;
+
+  const info = document.createElement('div');
+  info.className = 'item-info';
+  info.innerHTML = `<div class="item-name">${item.name}</div>
+    <div class="item-price">${item.price || ''}</div>`;
+
+  const label = document.createElement('label');
+  label.className = 'toggle';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = available;
+  cb.addEventListener('change', () => {
+    const avail = cb.checked;
+    overrideState[item.name] = avail;
+    row.classList.toggle('off', !avail);
+  });
+  const slider = document.createElement('span');
+  slider.className = 'slider';
+  label.appendChild(cb);
+  label.appendChild(slider);
+
+  row.appendChild(info);
+  row.appendChild(label);
+  return row;
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+async function saveChanges() {
+  if (!configData) return;
+  setStatus('Saving…', 'loading');
+
+  // Build clean overrides: only include items where override differs from config default
+  const allItems = configData.sections.flatMap(s => [
+    ...(s.items || []),
+    ...(s.sub_sections || []).flatMap(ss => ss.items || []),
+  ]);
+  const clean = { _updated_at: new Date().toISOString() };
+  for (const item of allItems) {
+    const configAvail = item.available !== false;
+    const override    = overrideState[item.name];
+    if (override !== undefined && override !== configAvail) {
+      clean[item.name] = override;
+    }
+  }
+
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(clean, null, 2) + '\n')));
+  const payload = {
+    message: `chore: update drink availability [${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}]`,
+    content,
+    ...(fileSha ? { sha: fileSha } : {}),
+  };
+
+  try {
+    const res  = await fetch(OVERRIDES_API, {
+      method:  'PUT',
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.content?.sha) {
+      fileSha = data.content.sha;
+      const offCount = Object.values(overrideState).filter(v => v === false).length;
+      setStatus(
+        offCount > 0
+          ? `✅ Saved — ${offCount} drink${offCount>1?'s':''} marked unavailable. Display updates in ~2 min.`
+          : '✅ All drinks set to available. Display updates in ~2 min.',
+        'ok'
+      );
+    } else {
+      setStatus('Error: ' + (data.message || 'Save failed — check access code.'), 'error');
+    }
+  } catch(e) {
+    setStatus('Network error: ' + e.message, 'error');
+  }
+}
+
+// ── Reset all ─────────────────────────────────────────────────────────────────
+async function resetAll() {
+  if (!confirm('Mark all drinks as available?')) return;
+  overrideState = {};
+  renderItems();
+  await saveChanges();
+}
+
+// ── Status helper ─────────────────────────────────────────────────────────────
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = '';
+  if (type === 'loading') el.className = 'status-loading';
+  if (type === 'ok')      el.className = 'status-ok';
+  if (type === 'error')   el.className = 'status-error';
+  if (!msg) el.style.display = 'none';
+  else      el.style.display = '';
+}
+</script>
+</body>
+</html>
