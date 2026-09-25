@@ -1,0 +1,234 @@
+/*
+ * FDB Beverage Menu — 1920×1080 horizontal display
+ * 4-column layout, FDB branding matching the horizontal pastry menu
+ */
+
+/* ── Variables ─────────────────────────────────────────────────────────────── */
+:root {
+  --pink:          #e8aabb;
+  --pink-dark:     #d48a9e;
+  --pink-light:    rgba(232,170,187,0.25);
+  --bg:            #fdf6fa;
+  --text:          #2a2520;
+  --text-muted:    #8a7a72;
+  --header-h:      10vh;
+  --footer-h:      4vh;
+
+  --font-display:  'Playfair Display', Georgia, serif;
+  --font-body:     'Inter', sans-serif;
+
+  font-size: calc(0.52vw + 0.52vh);
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2vw;
+  background: var(--bg);
+  border-bottom: 3px solid var(--pink);
+  z-index: 10;
+}
+
+.header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.header-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3.2vw, 4rem);
+  font-weight: 700;
+  color: var(--pink-dark);
+  letter-spacing: 0.12em;
+  font-style: italic;
+}
+
+.header-center {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  height: calc(var(--header-h) * 0.72);
+  width: auto;
+  display: block;
+}
+
+.header-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.header-location {
+  font-family: var(--font-display);
+  font-size: clamp(0.9rem, 1.6vw, 2rem);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Main 4-column grid ─────────────────────────────────────────────────────── */
+.bev-grid {
+  position: fixed;
+  top: var(--header-h);
+  left: 0; right: 0;
+  bottom: var(--footer-h);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  overflow: hidden;
+  padding: 1.5vh 1.2vw;
+  gap: 0;
+}
+
+/* ── Column ─────────────────────────────────────────────────────────────────── */
+.bev-col {
+  padding: 0 1vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8vh;
+}
+
+.bev-col:not(:last-child) {
+  border-right: 1.5px solid var(--pink-light);
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────────── */
+.bev-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vh;
+}
+
+.section-name {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.1vw, 2.8rem);
+  font-weight: 700;
+  color: var(--pink-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  margin-bottom: 0.3vh;
+}
+
+/* ── Temperature sub-label ──────────────────────────────────────────────────── */
+.temp-label {
+  display: inline-block;
+  background: var(--pink);
+  color: #fff;
+  padding: 0.15em 0.9em;
+  border-radius: 2em;
+  font-family: var(--font-body);
+  font-size: clamp(0.55rem, 0.9vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  margin: 0.3vh 0 0.4vh;
+  width: fit-content;
+}
+
+/* ── Item rows ──────────────────────────────────────────────────────────────── */
+.item-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4vw;
+  line-height: 1.55;
+}
+
+.item-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: clamp(0.75rem, 1.25vw, 1.8rem);
+  font-weight: 400;
+}
+
+.item-leader {
+  flex: 0 1 auto;
+  border-bottom: 1.5px dotted var(--text-muted);
+  margin-bottom: 0.22em;
+  min-width: 1vw;
+}
+
+.item-price {
+  flex-shrink: 0;
+  font-family: var(--font-body);
+  font-size: clamp(0.75rem, 1.2vw, 1.7rem);
+  font-weight: 400;
+  color: var(--text);
+}
+
+.item-row.unavailable .item-name,
+.item-row.unavailable .item-price {
+  opacity: 0.28;
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+/* ── Add-ons section ────────────────────────────────────────────────────────── */
+.addons-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vh;
+}
+
+.addons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vh;
+}
+
+.addons-items {
+  font-family: var(--font-display);
+  font-size: clamp(0.75rem, 1.2vw, 1.7rem);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.addons-syrups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.2vw;
+}
+
+.price-note {
+  font-family: var(--font-body);
+  font-size: clamp(0.65rem, 1vw, 1.4rem);
+  color: var(--text-muted);
+  margin-bottom: 0.2vh;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+.footer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 2px solid var(--pink-light);
+  padding: 0 2vw;
+}
+
+.footer-updated {
+  font-family: var(--font-body);
+  font-size: clamp(0.6rem, 0.9vw, 1.2rem);
+  color: var(--text-muted);
+}

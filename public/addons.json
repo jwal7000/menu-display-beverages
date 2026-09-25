@@ -1,0 +1,14 @@
+{
+  "milk": {
+    "label": "MILK",
+    "items": [
+      { "name": "Oat Milk",    "price": "+ $1.00" },
+      { "name": "Almond Milk", "price": "+ $1.00" }
+    ]
+  },
+  "syrups": {
+    "label": "SYRUPS",
+    "price_note": "+ .50",
+    "items": ["Vanilla", "Caramel", "Mocha", "Simple", "Honey", "White Mocha"]
+  }
+}
