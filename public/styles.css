@@ -3,6 +3,14 @@
  * 4-column layout, FDB branding matching the horizontal pastry menu
  */
 
+/* ── Custom Fonts ── */
+@font-face {
+  font-family: 'Neutraface 2 Display';
+  src: url('fonts/Neutra2Display-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+
 /* ── Variables ─────────────────────────────────────────────────────────────── */
 :root {
   --pink:          #e8aabb;
@@ -14,7 +22,7 @@
   --header-h:      10vh;
   --footer-h:      4vh;
 
-  --font-display:  'Playfair Display', Georgia, serif;
+  --font-display:  'Neutraface 2 Display', 'Playfair Display', Georgia, serif;
   --font-body:     'Inter', sans-serif;
 
   font-size: calc(0.52vw + 0.52vh);
