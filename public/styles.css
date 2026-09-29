@@ -112,6 +112,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 1.8vh;
+  justify-content: space-between;
 }
 
 .bev-col:not(:last-child) {
@@ -158,7 +159,7 @@ html, body {
   display: flex;
   align-items: baseline;
   gap: 0.4vw;
-  line-height: 1.55;
+  line-height: 2.1;
 }
 
 .item-name {
