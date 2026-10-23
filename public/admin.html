@@ -194,6 +194,12 @@
 
     /* ── Misc ────────────────────────────────────────────────────────────────── */
     .loading-msg { text-align: center; padding: 48px 0; color: #ccc; font-size: 0.9rem; }
+
+    .duration-badge {
+      font-size: 0.72rem; font-weight: 600; color: #d48a9e;
+      margin-top: 2px; letter-spacing: 0.02em;
+    }
+    .item-row.off .duration-badge { color: #c07090; }
   </style>
 </head>
 <body>
@@ -298,8 +304,9 @@ let currentLoc     = '';
 let currentTab     = 'pastry';
 let bevConfig      = null;
 let pastryConfig   = null;
-let bevSoldOut     = new Set();  // item names currently marked sold out
-let pastrySoldOut  = new Set();
+let bevSoldOutToday      = new Set();  // sold out for rest of day (resets at midnight)
+let bevSoldOutIndefinite = new Set();  // sold out indefinitely (manual reset only)
+let pastrySoldOut        = new Set();
 let bevFileSha     = null;
 let pastryFileSha  = null;
 
@@ -314,6 +321,19 @@ function apiHeaders() {
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── Midnight helpers ──────────────────────────────────────────────────────────
+
+function nextMidnightISO() {
+  const d = new Date();
+  d.setHours(24, 0, 0, 0);  // next midnight in device local time
+  return d.toISOString();
+}
+
+function isExpired(isoTimestamp) {
+  if (!isoTimestamp) return true;
+  return Date.now() >= new Date(isoTimestamp).getTime();
 }
 
 // ── Screen management ──────────────────────────────────────────────────────────
@@ -382,7 +402,7 @@ function saveLocation() {
   if (_locReturnScreen === 'screen-admin') {
     // Reload data for new location without re-entering PIN
     bevConfig = null; pastryConfig = null;
-    bevSoldOut = new Set(); pastrySoldOut = new Set();
+    bevSoldOutToday = new Set(); bevSoldOutIndefinite = new Set(); pastrySoldOut = new Set();
     bevFileSha = null; pastryFileSha = null;
     showScreen('screen-admin');
     loadItems();
@@ -448,13 +468,19 @@ async function loadItems() {
     pastryConfig = await pastryCfgRes.json();
 
     // Bev overrides
-    bevSoldOut = new Set();
+    bevSoldOutToday      = new Set();
+    bevSoldOutIndefinite = new Set();
     bevFileSha = null;
     if (bevOvRes.ok) {
       const d    = await bevOvRes.json();
       bevFileSha = d.sha;
       const raw  = JSON.parse(atob(d.content.replace(/\n/g, '')));
-      bevSoldOut = new Set(Array.isArray(raw.sold_out) ? raw.sold_out : []);
+      if (Array.isArray(raw.sold_out_indefinite)) {
+        bevSoldOutIndefinite = new Set(raw.sold_out_indefinite);
+      }
+      if (Array.isArray(raw.sold_out_today) && !isExpired(raw.sold_out_today_expires)) {
+        bevSoldOutToday = new Set(raw.sold_out_today);
+      }
     } else if (bevOvRes.status === 401) {
       clearToken();
       alert('Access code is invalid or expired. Please re-enter it.');
@@ -469,7 +495,10 @@ async function loadItems() {
       const d       = await pastryOvRes.json();
       pastryFileSha = d.sha;
       const raw     = JSON.parse(atob(d.content.replace(/\n/g, '')));
-      pastrySoldOut = new Set(Array.isArray(raw.sold_out) ? raw.sold_out : []);
+      // Only apply if not expired (resets at midnight)
+      if (!isExpired(raw.expires_at)) {
+        pastrySoldOut = new Set(Array.isArray(raw.sold_out) ? raw.sold_out : []);
+      }
     }
 
     setStatus('', '');
@@ -526,14 +555,17 @@ function renderBev() {
       ...(sec.sub_sections || []).flatMap(s => s.items || []),
     ];
     for (const item of allItems) {
-      list.appendChild(buildRow(item, !bevSoldOut.has(item.name), 'bev'));
+      const isSoldOut = bevSoldOutToday.has(item.name) || bevSoldOutIndefinite.has(item.name);
+      const duration  = bevSoldOutToday.has(item.name) ? 'today' : bevSoldOutIndefinite.has(item.name) ? 'indefinite' : null;
+      list.appendChild(buildRow(item, !isSoldOut, 'bev', duration));
     }
   }
 }
 
-function buildRow(item, available, type) {
+function buildRow(item, available, type, duration = null) {
   const row = document.createElement('div');
   row.className = `item-row${available ? '' : ' off'}`;
+  if (duration) row.dataset.duration = duration;
 
   // Info block
   const info    = document.createElement('div');
@@ -555,6 +587,13 @@ function buildRow(item, available, type) {
   info.appendChild(priceEl);
   info.appendChild(soEl);
 
+  if (type === 'bev' && !available && duration) {
+    const durEl = document.createElement('div');
+    durEl.className = 'duration-badge';
+    durEl.textContent = duration === 'today' ? 'Today only' : 'Indefinite';
+    info.appendChild(durEl);
+  }
+
   // Toggle
   const label   = document.createElement('label');
   label.className = 'toggle';
@@ -568,12 +607,22 @@ function buildRow(item, available, type) {
     if (type === 'pastry') {
       if (avail) pastrySoldOut.delete(item.name);
       else       pastrySoldOut.add(item.name);
+      row.classList.toggle('off', !avail);
+      label.setAttribute('aria-label', `${item.name} — ${avail ? 'available' : 'sold out'}`);
     } else {
-      if (avail) bevSoldOut.delete(item.name);
-      else       bevSoldOut.add(item.name);
+      if (avail) {
+        // Clearing sold out — remove from both lists
+        bevSoldOutToday.delete(item.name);
+        bevSoldOutIndefinite.delete(item.name);
+        row.classList.remove('off');
+        row.removeAttribute('data-duration');
+        label.setAttribute('aria-label', `${item.name} — available`);
+      } else {
+        // Revert toggle — wait for duration choice
+        cb.checked = true;
+        showDurationChoice(item.name, row, cb, label);
+      }
     }
-    row.classList.toggle('off', !avail);
-    label.setAttribute('aria-label', `${item.name} — ${avail ? 'available' : 'sold out'}`);
   });
 
   const slider  = document.createElement('span');
@@ -584,6 +633,71 @@ function buildRow(item, available, type) {
   row.appendChild(info);
   row.appendChild(label);
   return row;
+}
+
+// ── Duration choice modal (bev sold-out) ───────────────────────────────────────
+function showDurationChoice(itemName, row, cb, label) {
+  // Remove any existing modal
+  document.getElementById('duration-modal')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'duration-modal';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;
+    display:flex;align-items:flex-end;justify-content:center;
+  `;
+
+  const sheet = document.createElement('div');
+  sheet.style.cssText = `
+    background:#fff;border-radius:20px 20px 0 0;padding:28px 24px 40px;
+    width:100%;max-width:560px;
+  `;
+
+  sheet.innerHTML = `
+    <div style="font-size:0.8rem;color:#aaa;text-align:center;margin-bottom:6px;letter-spacing:.05em;text-transform:uppercase;">Mark sold out</div>
+    <div style="font-size:1.15rem;font-weight:700;color:#2a2520;text-align:center;margin-bottom:24px;">${itemName}</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <button id="dur-today" style="width:100%;padding:18px;font-size:1rem;font-weight:700;background:#e8aabb;color:white;border:none;border-radius:14px;cursor:pointer;">
+        Rest of day
+        <div style="font-size:.78rem;font-weight:400;opacity:.85;margin-top:3px;">Resets automatically at midnight</div>
+      </button>
+      <button id="dur-indefinite" style="width:100%;padding:18px;font-size:1rem;font-weight:700;background:#f0e0e7;color:#c07090;border:none;border-radius:14px;cursor:pointer;">
+        Indefinitely
+        <div style="font-size:.78rem;font-weight:400;opacity:.85;margin-top:3px;">Stays off until manually turned back on</div>
+      </button>
+      <button id="dur-cancel" style="width:100%;padding:14px;font-size:.95rem;font-weight:600;background:#f4f4f4;color:#888;border:none;border-radius:14px;cursor:pointer;margin-top:4px;">
+        Cancel
+      </button>
+    </div>
+  `;
+
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+
+  function choose(duration) {
+    overlay.remove();
+    if (duration === 'today') {
+      bevSoldOutToday.add(itemName);
+      bevSoldOutIndefinite.delete(itemName);
+    } else {
+      bevSoldOutIndefinite.add(itemName);
+      bevSoldOutToday.delete(itemName);
+    }
+    cb.checked = false; // toggle visually off
+    row.classList.add('off');
+    row.dataset.duration = duration;
+    label.setAttribute('aria-label', `${itemName} — sold out`);
+    // Update/add duration badge
+    row.querySelector('.duration-badge')?.remove();
+    const durEl = document.createElement('div');
+    durEl.className = 'duration-badge';
+    durEl.textContent = duration === 'today' ? 'Today only' : 'Indefinite';
+    row.querySelector('.item-info').appendChild(durEl);
+  }
+
+  document.getElementById('dur-today').addEventListener('click', () => choose('today'));
+  document.getElementById('dur-indefinite').addEventListener('click', () => choose('indefinite'));
+  document.getElementById('dur-cancel').addEventListener('click', () => overlay.remove());
 }
 
 // ── Save changes (both tabs) ───────────────────────────────────────────────────
@@ -600,8 +714,10 @@ async function saveChanges() {
   // Save bev overrides
   try {
     const body = {
-      _updated_at: new Date().toISOString(),
-      sold_out:    [...bevSoldOut],
+      _updated_at:            new Date().toISOString(),
+      sold_out_today:         [...bevSoldOutToday],
+      sold_out_today_expires: bevSoldOutToday.size > 0 ? nextMidnightISO() : null,
+      sold_out_indefinite:    [...bevSoldOutIndefinite],
     };
     const res  = await fetch(BEV_OV_API, {
       method:  'PUT',
@@ -624,6 +740,7 @@ async function saveChanges() {
     const body = {
       _updated_at: new Date().toISOString(),
       sold_out:    [...pastrySoldOut],
+      expires_at:  pastrySoldOut.size > 0 ? nextMidnightISO() : null,
     };
     const res  = await fetch(PASTRY_OV_API, {
       method:  'PUT',
@@ -642,7 +759,7 @@ async function saveChanges() {
   }
 
   if (errors.length === 0) {
-    const total = bevSoldOut.size + pastrySoldOut.size;
+    const total = bevSoldOutToday.size + bevSoldOutIndefinite.size + pastrySoldOut.size;
     setStatus(
       total > 0
         ? `✅ Saved — ${total} item${total > 1 ? 's' : ''} marked sold out. Display updates in ~2 min.`
@@ -659,7 +776,7 @@ async function resetCurrentTab() {
   const label = currentTab === 'pastry' ? 'pastry' : 'beverage';
   if (!confirm(`Mark all ${label} items as available?`)) return;
   if (currentTab === 'pastry') pastrySoldOut = new Set();
-  else bevSoldOut = new Set();
+  else { bevSoldOutToday = new Set(); bevSoldOutIndefinite = new Set(); }
   renderCurrentTab();
   await saveChanges();
 }

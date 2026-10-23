@@ -131,8 +131,19 @@
     try {
       const res = await fetch(OVERRIDES_URL + '?t=' + Date.now());
       if (res.ok) {
-        const d = await res.json();
-        overridesData = new Set(Array.isArray(d.sold_out) ? d.sold_out : []);
+        const d   = await res.json();
+        const now = Date.now();
+
+        // Indefinite sold out — always apply
+        const indefinite = new Set(Array.isArray(d.sold_out_indefinite) ? d.sold_out_indefinite : []);
+
+        // Today-only sold out — only apply if not past midnight
+        const todayExpiry = d.sold_out_today_expires ? new Date(d.sold_out_today_expires).getTime() : 0;
+        const todaySet    = (Array.isArray(d.sold_out_today) && now < todayExpiry)
+          ? new Set(d.sold_out_today)
+          : new Set();
+
+        overridesData = new Set([...indefinite, ...todaySet]);
         if (overridesData.size) {
           console.log('[bev] overrides active:', [...overridesData]);
         }
