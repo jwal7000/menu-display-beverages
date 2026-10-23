@@ -3,170 +3,400 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>FDB Beverage Admin</title>
+  <title>FDB Admin</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #fdf6fa;
       color: #2a2520;
       min-height: 100dvh;
     }
-    .screen { display: none; padding: 28px 20px; max-width: 480px; margin: 0 auto; }
+
+    /* ── Screens ──────────────────────────────────────────────────────────── */
+    .screen { display: none; padding: 32px 24px; max-width: 560px; margin: 0 auto; }
     .screen.active { display: block; }
 
-    .logo { text-align: center; margin-bottom: 20px; }
-    .logo img { height: 60px; }
-    h1 { font-size: 1.3rem; font-weight: 700; color: #d48a9e; margin-bottom: 6px; }
-    .subtitle { font-size: 0.9rem; color: #888; margin-bottom: 24px; }
+    /* ── Logo ──────────────────────────────────────────────────────────────── */
+    .logo { text-align: center; margin-bottom: 24px; }
+    .logo img { height: 64px; }
 
-    input[type="password"], input[type="text"] {
-      width: 100%; padding: 15px; font-size: 1.1rem;
-      border: 2px solid #e8aabb; border-radius: 10px;
+    /* ── Typography ─────────────────────────────────────────────────────────── */
+    h1 { font-size: 1.35rem; font-weight: 700; color: #d48a9e; margin-bottom: 8px; }
+    .subtitle { font-size: 0.9rem; color: #888; margin-bottom: 24px; line-height: 1.6; }
+    .subtitle strong { color: #c07090; }
+
+    /* ── Inputs ─────────────────────────────────────────────────────────────── */
+    input[type="password"],
+    input[type="text"] {
+      width: 100%; padding: 16px; font-size: 1.1rem;
+      border: 2px solid #e8aabb; border-radius: 12px;
       background: white; margin-bottom: 12px;
-      -webkit-appearance: none;
+      -webkit-appearance: none; appearance: none;
     }
     input:focus { outline: none; border-color: #d48a9e; }
 
+    select {
+      width: 100%; padding: 16px; font-size: 1.1rem;
+      border: 2px solid #e8aabb; border-radius: 12px;
+      background: white; margin-bottom: 12px;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d48a9e' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 42px;
+      cursor: pointer;
+    }
+    select:focus { outline: none; border-color: #d48a9e; }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
     .btn {
-      width: 100%; padding: 15px; font-size: 1rem; font-weight: 700;
-      background: #e8aabb; color: white; border: none; border-radius: 10px;
-      cursor: pointer; letter-spacing: 0.04em;
+      width: 100%; padding: 17px; font-size: 1rem; font-weight: 700;
+      background: #e8aabb; color: white; border: none; border-radius: 12px;
+      cursor: pointer; letter-spacing: 0.04em; -webkit-appearance: none;
     }
     .btn:active { background: #d48a9e; transform: scale(0.98); }
-    .btn.secondary { background: white; color: #d48a9e; border: 2px solid #e8aabb; margin-top: 10px; }
-    .btn.danger { background: #f0a0a0; margin-top: 10px; }
-
-    /* Item list */
-    .section-label {
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: #d48a9e;
-      margin: 24px 0 10px;
+    .btn.secondary {
+      background: white; color: #d48a9e;
+      border: 2px solid #e8aabb; margin-top: 10px;
     }
+    .btn.secondary:active { background: #fdf0f5; }
+
+    /* ── Location badge (PIN screen) ─────────────────────────────────────────── */
+    .loc-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f7e8f0; border-radius: 20px; padding: 8px 16px;
+      font-size: 0.95rem; color: #d48a9e; font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    /* ── Small action links ──────────────────────────────────────────────────── */
+    .change-link {
+      font-size: 0.78rem; color: #bbb; cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px;
+      white-space: nowrap;
+    }
+    .change-link:active { color: #d48a9e; }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       ADMIN SCREEN — full-viewport flex layout
+    ══════════════════════════════════════════════════════════════════════════ */
+    #screen-admin {
+      padding: 0; display: none; flex-direction: column;
+      height: 100dvh; max-width: 100%;
+    }
+    #screen-admin.active { display: flex; }
+
+    /* ── Admin header ────────────────────────────────────────────────────────── */
+    .admin-header {
+      background: white; flex-shrink: 0;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid #f0e8ec;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .admin-header h1 { font-size: 1.1rem; margin-bottom: 0; }
+
+    /* ── Tab bar ─────────────────────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; flex-shrink: 0;
+      background: white; border-bottom: 2px solid #f0e8ec;
+      padding: 0 22px; gap: 4px;
+    }
+    .tab-btn {
+      flex: 1; padding: 15px 0; font-size: 1rem; font-weight: 600;
+      border: none; border-bottom: 3px solid transparent;
+      background: none; cursor: pointer; color: #bbb;
+      margin-bottom: -2px; /* overlap the bar border */
+      transition: color 0.15s, border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    .tab-btn.active { color: #d48a9e; border-bottom-color: #e8aabb; }
+
+    /* ── Scrollable item list ────────────────────────────────────────────────── */
+    .item-list-wrap {
+      flex: 1; overflow-y: auto; padding: 0 22px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ── Section headers (sticky within scroll) ──────────────────────────────── */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #d48a9e;
+      padding: 20px 0 8px;
+      position: sticky; top: 0;
+      background: #fdf6fa;
+      z-index: 1;
+    }
+
+    /* ── Item rows ───────────────────────────────────────────────────────────── */
     .item-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 13px 0; border-bottom: 1px solid #f0e8ec; gap: 10px;
+      padding: 15px 0; border-bottom: 1px solid #f0e8ec; gap: 14px;
+      min-height: 60px;
     }
     .item-info { flex: 1; min-width: 0; }
-    .item-name { font-size: 1rem; }
-    .item-price { font-size: 0.82rem; color: #aaa; }
-    .item-row.off .item-name { opacity: 0.4; text-decoration: line-through; }
+    .item-name  { font-size: 1rem; line-height: 1.3; }
+    .item-price { font-size: 0.82rem; color: #aaa; margin-top: 3px; }
 
-    /* Toggle switch */
-    .toggle { flex-shrink: 0; position: relative; width: 54px; height: 30px; }
+    /* Sold-out state ─────── */
+    .sold-out-badge {
+      display: none;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #e07070; margin-top: 3px;
+    }
+    .item-row.off .item-name  { opacity: 0.4; }
+    .item-row.off .item-price { display: none; }
+    .item-row.off .sold-out-badge { display: block; }
+
+    /* ── Toggle switch ───────────────────────────────────────────────────────── */
+    .toggle { flex-shrink: 0; position: relative; width: 58px; height: 32px; }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
     .slider {
       position: absolute; inset: 0;
-      background: #ddd; border-radius: 30px; cursor: pointer;
+      background: #e07070;   /* red = sold out (default/off) */
+      border-radius: 32px; cursor: pointer;
       transition: background 0.2s;
     }
     .slider::before {
       content: ''; position: absolute;
-      width: 22px; height: 22px; left: 4px; top: 4px;
+      width: 24px; height: 24px; left: 4px; top: 4px;
       background: white; border-radius: 50%;
       transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     }
-    .toggle input:checked + .slider { background: #e8aabb; }
-    .toggle input:checked + .slider::before { transform: translateX(24px); }
+    .toggle input:checked + .slider              { background: #e8aabb; } /* pink = available */
+    .toggle input:checked + .slider::before      { transform: translateX(26px); }
 
-    /* Status */
+    /* ── Save area (sticky bottom) ───────────────────────────────────────────── */
+    .save-area {
+      flex-shrink: 0; background: white;
+      border-top: 1px solid #f0e8ec;
+      padding: 16px 22px 10px;
+    }
+
+    /* ── Status message ──────────────────────────────────────────────────────── */
     #status {
-      margin-top: 16px; padding: 14px; border-radius: 10px;
-      font-size: 0.9rem; text-align: center; display: none;
+      margin-top: 12px; padding: 13px; border-radius: 10px;
+      font-size: 0.88rem; line-height: 1.4; text-align: center; display: none;
     }
     .status-loading { display: block !important; background: #fff3cd; color: #856404; }
     .status-ok      { display: block !important; background: #d4edda; color: #155724; }
     .status-error   { display: block !important; background: #f8d7da; color: #721c24; }
 
-    .save-area { position: sticky; bottom: 0; background: #fdf6fa; padding: 16px 0 20px; }
-    .small-link { text-align: center; font-size: 0.78rem; color: #bbb; cursor: pointer; margin-top: 20px; padding-bottom: 32px; }
-    .small-link:active { color: #d48a9e; }
+    /* ── Bottom utility links ────────────────────────────────────────────────── */
+    .bottom-links {
+      flex-shrink: 0; background: white;
+      border-top: 1px solid #f5ecf0;
+      padding: 12px 22px 20px;
+      display: flex; gap: 0; justify-content: space-between;
+    }
+
+    /* ── Misc ────────────────────────────────────────────────────────────────── */
+    .loading-msg { text-align: center; padding: 48px 0; color: #ccc; font-size: 0.9rem; }
   </style>
 </head>
 <body>
 
-<!-- ── Setup screen (one-time access code entry) ── -->
+<!-- ══ SETUP SCREEN ═══════════════════════════════════════════════════════════ -->
 <div class="screen" id="screen-setup">
   <div class="logo"><img src="logo.png" alt="Five Daughters Bakery" /></div>
   <h1>Admin Setup</h1>
-  <p class="subtitle">First-time setup on this device. Enter the admin access code below — you'll only need to do this once.</p>
-  <input type="password" id="setup-token" placeholder="Admin access code" autocomplete="off" />
-  <button class="btn" onclick="saveToken()">Save & Continue</button>
+  <p class="subtitle">
+    First-time setup on this device. Enter your GitHub access code and select your
+    location — you'll only need to do this once.<br><br>
+    ⚠️ The access code must have <strong>write access to both</strong> the beverage
+    and pastry menu repositories.
+  </p>
+  <input type="password" id="setup-token" placeholder="GitHub access code" autocomplete="off" />
+  <select id="setup-loc">
+    <option value="">Select location…</option>
+    <option value="medley">Medley</option>
+    <option value="the-gulch">The Gulch</option>
+  </select>
+  <button class="btn" onclick="saveSetup()">Save &amp; Continue</button>
 </div>
 
-<!-- ── PIN screen ── -->
+<!-- ══ LOCATION SCREEN (change only) ═════════════════════════════════════════ -->
+<div class="screen" id="screen-location">
+  <div class="logo"><img src="logo.png" alt="Five Daughters Bakery" /></div>
+  <h1>Change Location</h1>
+  <p class="subtitle">Select the location for this device.</p>
+  <select id="location-select">
+    <option value="">Select location…</option>
+    <option value="medley">Medley</option>
+    <option value="the-gulch">The Gulch</option>
+  </select>
+  <button class="btn" onclick="saveLocation()">Continue</button>
+  <button class="btn secondary" onclick="goBack()">Back</button>
+</div>
+
+<!-- ══ PIN SCREEN ════════════════════════════════════════════════════════════ -->
 <div class="screen" id="screen-pin">
   <div class="logo"><img src="logo.png" alt="Five Daughters Bakery" /></div>
-  <h1>Beverage Menu</h1>
-  <p class="subtitle">Enter PIN to manage drink availability.</p>
+  <h1>Five Daughters Admin</h1>
+  <div>
+    <span class="loc-badge">📍 <span id="pin-location">—</span></span>
+    &nbsp;<span class="change-link" onclick="changeLocation()">change location</span>
+  </div>
+  <br />
   <input type="password" id="pin-input" placeholder="PIN" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
   <button class="btn" onclick="checkPin()">Enter</button>
 </div>
 
-<!-- ── Admin screen ── -->
+<!-- ══ ADMIN SCREEN ═══════════════════════════════════════════════════════════ -->
 <div class="screen" id="screen-admin">
-  <h1>Drink Availability</h1>
-  <p class="subtitle">Toggle drinks on or off. Changes appear on the display within 2–3 minutes.</p>
-  <div id="item-list">
-    <p class="subtitle" style="text-align:center;padding:20px 0">Loading…</p>
+
+  <div class="admin-header">
+    <h1>🍩 <span id="admin-location">—</span></h1>
+    <span class="change-link" onclick="changeLocation()">Change location</span>
   </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="pastry" onclick="switchTab('pastry')">Pastry</button>
+    <button class="tab-btn"       data-tab="bev"    onclick="switchTab('bev')">Beverages</button>
+  </div>
+
+  <div class="item-list-wrap">
+    <div id="item-list">
+      <p class="loading-msg">Loading…</p>
+    </div>
+  </div>
+
   <div class="save-area">
     <button class="btn" onclick="saveChanges()">Save Changes</button>
     <div id="status"></div>
   </div>
-  <div class="small-link" onclick="resetAll()">Reset all drinks to available</div>
-  <div class="small-link" onclick="changeCode()">Change access code</div>
+
+  <div class="bottom-links">
+    <span class="change-link" onclick="resetCurrentTab()">Reset tab — all available</span>
+    <span class="change-link" onclick="changeCode()">Change access code</span>
+  </div>
+
 </div>
 
 <script>
 'use strict';
 
-// ── Config ──────────────────────────────────────────────────────────────────
-const REPO          = 'jwal7000/menu-display-beverages';
-const CONFIG_RAW    = `https://raw.githubusercontent.com/${REPO}/main/output/bev-items-config.json`;
-const OVERRIDES_API = `https://api.github.com/repos/${REPO}/contents/public/overrides.json`;
-// SHA-256 of "2026" — change this if PIN changes
-const PIN_SHA256    = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab';
+// ── Constants ──────────────────────────────────────────────────────────────────
+const PIN_SHA256  = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab';
+const BEV_REPO    = 'jwal7000/menu-display-beverages';
+const PASTRY_REPO = 'jwal7000/menu-display-horizontal';
+const LOCATIONS   = { 'medley': 'Medley', 'the-gulch': 'The Gulch' };
 
-// ── Token storage ────────────────────────────────────────────────────────────
-const getToken = () => localStorage.getItem('fdb_bev_token') || '';
-const setToken = t  => localStorage.setItem('fdb_bev_token', t);
-const clearToken = () => localStorage.removeItem('fdb_bev_token');
+// ── localStorage helpers ───────────────────────────────────────────────────────
+const TOKEN_KEY  = 'fdb_admin_token';
+const LOC_KEY    = 'fdb_admin_loc';
+const getToken   = () => localStorage.getItem(TOKEN_KEY) || '';
+const setToken   = t  => localStorage.setItem(TOKEN_KEY, t);
+const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+const getLoc     = () => localStorage.getItem(LOC_KEY) || '';
+const setLoc     = l  => localStorage.setItem(LOC_KEY, l);
 
-// ── Screens ──────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────────
+let currentLoc     = '';
+let currentTab     = 'pastry';
+let bevConfig      = null;
+let pastryConfig   = null;
+let bevSoldOut     = new Set();  // item names currently marked sold out
+let pastrySoldOut  = new Set();
+let bevFileSha     = null;
+let pastryFileSha  = null;
+
+// ── API helpers ────────────────────────────────────────────────────────────────
+function apiHeaders() {
+  return {
+    Authorization: `token ${getToken()}`,
+    Accept:        'application/vnd.github+json',
+  };
+}
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── Screen management ──────────────────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
+function updateLocationDisplay() {
+  const name = LOCATIONS[currentLoc] || currentLoc;
+  document.getElementById('pin-location').textContent   = name;
+  document.getElementById('admin-location').textContent = name;
+}
+
 window.addEventListener('load', () => {
-  showScreen(getToken() ? 'screen-pin' : 'screen-setup');
-  document.getElementById('pin-input')?.addEventListener('keydown', e => {
+  const token = getToken();
+  const loc   = getLoc();
+
+  if (!token) {
+    showScreen('screen-setup');
+  } else if (!loc) {
+    showScreen('screen-location');
+  } else {
+    currentLoc = loc;
+    updateLocationDisplay();
+    showScreen('screen-pin');
+    document.getElementById('pin-input').focus();
+  }
+
+  document.getElementById('pin-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') checkPin();
   });
 });
 
-function saveToken() {
+// ── Setup screen ───────────────────────────────────────────────────────────────
+function saveSetup() {
   const t = document.getElementById('setup-token').value.trim();
+  const l = document.getElementById('setup-loc').value;
   if (!t) { alert('Please enter the admin access code.'); return; }
+  if (!l) { alert('Please select a location.'); return; }
   setToken(t);
+  setLoc(l);
+  currentLoc = l;
   document.getElementById('setup-token').value = '';
+  updateLocationDisplay();
   showScreen('screen-pin');
+  document.getElementById('pin-input').focus();
 }
 
-function changeCode() {
-  if (!confirm('Clear saved access code and set up again?')) return;
-  clearToken();
-  showScreen('screen-setup');
+// ── Location screen ────────────────────────────────────────────────────────────
+let _locReturnScreen = 'screen-pin';
+
+function changeLocation() {
+  _locReturnScreen = document.querySelector('.screen.active')?.id || 'screen-pin';
+  const sel = document.getElementById('location-select');
+  sel.value = currentLoc || '';
+  showScreen('screen-location');
 }
 
-// ── PIN ──────────────────────────────────────────────────────────────────────
-async function sha256(str) {
-  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+function saveLocation() {
+  const l = document.getElementById('location-select').value;
+  if (!l) { alert('Please select a location.'); return; }
+  setLoc(l);
+  currentLoc = l;
+  updateLocationDisplay();
+  if (_locReturnScreen === 'screen-admin') {
+    // Reload data for new location without re-entering PIN
+    bevConfig = null; pastryConfig = null;
+    bevSoldOut = new Set(); pastrySoldOut = new Set();
+    bevFileSha = null; pastryFileSha = null;
+    showScreen('screen-admin');
+    loadItems();
+  } else {
+    showScreen('screen-pin');
+    document.getElementById('pin-input').focus();
+  }
 }
 
+function goBack() {
+  showScreen(_locReturnScreen || 'screen-pin');
+}
+
+// ── PIN screen ─────────────────────────────────────────────────────────────────
 async function checkPin() {
   const pin  = document.getElementById('pin-input').value.trim();
   const hash = await sha256(pin);
@@ -176,65 +406,116 @@ async function checkPin() {
   loadItems();
 }
 
-// ── Data ─────────────────────────────────────────────────────────────────────
-let configData    = null;
-let overrideState = {};  // item name → true/false (override) or undefined (follow config)
-let fileSha       = null;
-
-function apiHeaders() {
-  return {
-    Authorization: `token ${getToken()}`,
-    Accept: 'application/vnd.github+json',
-  };
+// ── Change access code ─────────────────────────────────────────────────────────
+function changeCode() {
+  if (!confirm('Clear saved access code and set up again?')) return;
+  clearToken();
+  showScreen('screen-setup');
 }
 
+// ── Tab switching ──────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+  renderCurrentTab();
+}
+
+// ── Data loading ───────────────────────────────────────────────────────────────
 async function loadItems() {
-  setStatus('Loading…', 'loading');
+  setStatus('Loading menu data…', 'loading');
+  document.getElementById('item-list').innerHTML = '<p class="loading-msg">Loading…</p>';
+  const loc = currentLoc;
+
+  const BEV_CONFIG_URL  = `https://raw.githubusercontent.com/${BEV_REPO}/main/output/bev-items-config.json`;
+  const PASTRY_URL      = `https://raw.githubusercontent.com/${PASTRY_REPO}/main/public/data/${loc}.json`;
+  const BEV_OV_API      = `https://api.github.com/repos/${BEV_REPO}/contents/public/overrides-${loc}.json`;
+  const PASTRY_OV_API   = `https://api.github.com/repos/${PASTRY_REPO}/contents/public/pastry-overrides-${loc}.json`;
+
   try {
-    const [cfgRes, ovRes] = await Promise.all([
-      fetch(CONFIG_RAW + '?t=' + Date.now()),
-      fetch(OVERRIDES_API, { headers: apiHeaders() }),
+    const [bevCfgRes, pastryCfgRes, bevOvRes, pastryOvRes] = await Promise.all([
+      fetch(BEV_CONFIG_URL + '?t=' + Date.now()),
+      fetch(PASTRY_URL     + '?t=' + Date.now()),
+      fetch(BEV_OV_API,    { headers: apiHeaders() }),
+      fetch(PASTRY_OV_API, { headers: apiHeaders() }),
     ]);
 
-    if (!cfgRes.ok) throw new Error('Could not load beverage config.');
-    configData = await cfgRes.json();
+    if (!bevCfgRes.ok)    throw new Error(`Beverage config: HTTP ${bevCfgRes.status}`);
+    if (!pastryCfgRes.ok) throw new Error(`Pastry menu: HTTP ${pastryCfgRes.status}`);
 
-    if (ovRes.ok) {
-      const ovData = await ovRes.json();
-      if (ovData.sha) {
-        fileSha = ovData.sha;
-        const raw = JSON.parse(atob(ovData.content.replace(/\n/g, '')));
-        // Keep only boolean entries (filter metadata keys)
-        overrideState = Object.fromEntries(
-          Object.entries(raw).filter(([k, v]) => !k.startsWith('_') && typeof v === 'boolean')
-        );
-      }
-    } else if (ovRes.status === 401) {
+    bevConfig    = await bevCfgRes.json();
+    pastryConfig = await pastryCfgRes.json();
+
+    // Bev overrides
+    bevSoldOut = new Set();
+    bevFileSha = null;
+    if (bevOvRes.ok) {
+      const d    = await bevOvRes.json();
+      bevFileSha = d.sha;
+      const raw  = JSON.parse(atob(d.content.replace(/\n/g, '')));
+      bevSoldOut = new Set(Array.isArray(raw.sold_out) ? raw.sold_out : []);
+    } else if (bevOvRes.status === 401) {
       clearToken();
-      alert('Access code is invalid. Please re-enter it.');
+      alert('Access code is invalid or expired. Please re-enter it.');
       showScreen('screen-setup');
       return;
     }
 
+    // Pastry overrides
+    pastrySoldOut = new Set();
+    pastryFileSha = null;
+    if (pastryOvRes.ok) {
+      const d       = await pastryOvRes.json();
+      pastryFileSha = d.sha;
+      const raw     = JSON.parse(atob(d.content.replace(/\n/g, '')));
+      pastrySoldOut = new Set(Array.isArray(raw.sold_out) ? raw.sold_out : []);
+    }
+
     setStatus('', '');
-    renderItems();
-  } catch(e) {
-    setStatus('Error: ' + e.message, 'error');
+    renderCurrentTab();
+
+  } catch (e) {
+    setStatus('⚠️ ' + e.message, 'error');
+    document.getElementById('item-list').innerHTML = '';
   }
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
-function getEffectiveAvail(itemName, configAvail) {
-  return overrideState.hasOwnProperty(itemName)
-    ? overrideState[itemName]
-    : (configAvail !== false);
+// ── Render ─────────────────────────────────────────────────────────────────────
+function renderCurrentTab() {
+  if (currentTab === 'pastry') renderPastry();
+  else renderBev();
 }
 
-function renderItems() {
+function renderPastry() {
   const list = document.getElementById('item-list');
   list.innerHTML = '';
+  if (!pastryConfig) { list.innerHTML = '<p class="loading-msg">No pastry data loaded.</p>'; return; }
 
-  for (const sec of configData.sections) {
+  let count = 0;
+  for (const sec of (pastryConfig.sections || [])) {
+    const items = (sec.items || []).filter(i => i.name);
+    if (!items.length) continue;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'section-label';
+    hdr.textContent = sec.name;
+    list.appendChild(hdr);
+
+    for (const item of items) {
+      list.appendChild(buildRow(item, !pastrySoldOut.has(item.name), 'pastry'));
+      count++;
+    }
+  }
+  if (!count) list.innerHTML = '<p class="loading-msg">No pastry items found.</p>';
+}
+
+function renderBev() {
+  const list = document.getElementById('item-list');
+  list.innerHTML = '';
+  if (!bevConfig) { list.innerHTML = '<p class="loading-msg">No beverage data loaded.</p>'; return; }
+
+  for (const sec of (bevConfig.sections || [])) {
     const hdr = document.createElement('div');
     hdr.className = 'section-label';
     hdr.textContent = sec.name;
@@ -244,35 +525,58 @@ function renderItems() {
       ...(sec.items || []),
       ...(sec.sub_sections || []).flatMap(s => s.items || []),
     ];
-
     for (const item of allItems) {
-      const avail = getEffectiveAvail(item.name, item.available);
-      list.appendChild(buildRow(item, avail));
+      list.appendChild(buildRow(item, !bevSoldOut.has(item.name), 'bev'));
     }
   }
 }
 
-function buildRow(item, available) {
+function buildRow(item, available, type) {
   const row = document.createElement('div');
   row.className = `item-row${available ? '' : ' off'}`;
-  row.dataset.item = item.name;
 
-  const info = document.createElement('div');
+  // Info block
+  const info    = document.createElement('div');
   info.className = 'item-info';
-  info.innerHTML = `<div class="item-name">${item.name}</div>
-    <div class="item-price">${item.price || ''}</div>`;
 
-  const label = document.createElement('label');
+  const nameEl  = document.createElement('div');
+  nameEl.className = 'item-name';
+  nameEl.textContent = item.name;
+
+  const priceEl = document.createElement('div');
+  priceEl.className = 'item-price';
+  priceEl.textContent = item.price || '';
+
+  const soEl    = document.createElement('div');
+  soEl.className = 'sold-out-badge';
+  soEl.textContent = 'Sold Out';
+
+  info.appendChild(nameEl);
+  info.appendChild(priceEl);
+  info.appendChild(soEl);
+
+  // Toggle
+  const label   = document.createElement('label');
   label.className = 'toggle';
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.checked = available;
+  label.setAttribute('aria-label', `${item.name} — ${available ? 'available' : 'sold out'}`);
+
+  const cb      = document.createElement('input');
+  cb.type       = 'checkbox';
+  cb.checked    = available;
   cb.addEventListener('change', () => {
     const avail = cb.checked;
-    overrideState[item.name] = avail;
+    if (type === 'pastry') {
+      if (avail) pastrySoldOut.delete(item.name);
+      else       pastrySoldOut.add(item.name);
+    } else {
+      if (avail) bevSoldOut.delete(item.name);
+      else       bevSoldOut.add(item.name);
+    }
     row.classList.toggle('off', !avail);
+    label.setAttribute('aria-label', `${item.name} — ${avail ? 'available' : 'sold out'}`);
   });
-  const slider = document.createElement('span');
+
+  const slider  = document.createElement('span');
   slider.className = 'slider';
   label.appendChild(cb);
   label.appendChild(slider);
@@ -282,74 +586,93 @@ function buildRow(item, available) {
   return row;
 }
 
-// ── Save ──────────────────────────────────────────────────────────────────────
+// ── Save changes (both tabs) ───────────────────────────────────────────────────
 async function saveChanges() {
-  if (!configData) return;
   setStatus('Saving…', 'loading');
+  const loc = currentLoc;
+  const ts  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Build clean overrides: only include items where override differs from config default
-  const allItems = configData.sections.flatMap(s => [
-    ...(s.items || []),
-    ...(s.sub_sections || []).flatMap(ss => ss.items || []),
-  ]);
-  const clean = { _updated_at: new Date().toISOString() };
-  for (const item of allItems) {
-    const configAvail = item.available !== false;
-    const override    = overrideState[item.name];
-    if (override !== undefined && override !== configAvail) {
-      clean[item.name] = override;
-    }
-  }
+  const BEV_OV_API    = `https://api.github.com/repos/${BEV_REPO}/contents/public/overrides-${loc}.json`;
+  const PASTRY_OV_API = `https://api.github.com/repos/${PASTRY_REPO}/contents/public/pastry-overrides-${loc}.json`;
 
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(clean, null, 2) + '\n')));
-  const payload = {
-    message: `chore: update drink availability [${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}]`,
-    content,
-    ...(fileSha ? { sha: fileSha } : {}),
-  };
+  const errors = [];
 
+  // Save bev overrides
   try {
-    const res  = await fetch(OVERRIDES_API, {
+    const body = {
+      _updated_at: new Date().toISOString(),
+      sold_out:    [...bevSoldOut],
+    };
+    const res  = await fetch(BEV_OV_API, {
       method:  'PUT',
       headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
+      body:    JSON.stringify({
+        message: `chore: update bev availability [${ts}]`,
+        content: btoa(unescape(encodeURIComponent(JSON.stringify(body, null, 2) + '\n'))),
+        ...(bevFileSha ? { sha: bevFileSha } : {}),
+      }),
     });
-    const data = await res.json();
-    if (data.content?.sha) {
-      fileSha = data.content.sha;
-      const offCount = Object.values(overrideState).filter(v => v === false).length;
-      setStatus(
-        offCount > 0
-          ? `✅ Saved — ${offCount} drink${offCount>1?'s':''} marked unavailable. Display updates in ~2 min.`
-          : '✅ All drinks set to available. Display updates in ~2 min.',
-        'ok'
-      );
-    } else {
-      setStatus('Error: ' + (data.message || 'Save failed — check access code.'), 'error');
-    }
-  } catch(e) {
-    setStatus('Network error: ' + e.message, 'error');
+    const d    = await res.json();
+    if (d.content?.sha) bevFileSha = d.content.sha;
+    else errors.push('Beverages: ' + (d.message || 'save failed'));
+  } catch (e) {
+    errors.push('Beverages: ' + e.message);
+  }
+
+  // Save pastry overrides
+  try {
+    const body = {
+      _updated_at: new Date().toISOString(),
+      sold_out:    [...pastrySoldOut],
+    };
+    const res  = await fetch(PASTRY_OV_API, {
+      method:  'PUT',
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        message: `chore: update pastry availability [${ts}]`,
+        content: btoa(unescape(encodeURIComponent(JSON.stringify(body, null, 2) + '\n'))),
+        ...(pastryFileSha ? { sha: pastryFileSha } : {}),
+      }),
+    });
+    const d    = await res.json();
+    if (d.content?.sha) pastryFileSha = d.content.sha;
+    else errors.push('Pastry: ' + (d.message || 'save failed'));
+  } catch (e) {
+    errors.push('Pastry: ' + e.message);
+  }
+
+  if (errors.length === 0) {
+    const total = bevSoldOut.size + pastrySoldOut.size;
+    setStatus(
+      total > 0
+        ? `✅ Saved — ${total} item${total > 1 ? 's' : ''} marked sold out. Display updates in ~2 min.`
+        : '✅ All items set to available. Display updates in ~2 min.',
+      'ok'
+    );
+  } else {
+    setStatus('⚠️ ' + errors.join(' · '), 'error');
   }
 }
 
-// ── Reset all ─────────────────────────────────────────────────────────────────
-async function resetAll() {
-  if (!confirm('Mark all drinks as available?')) return;
-  overrideState = {};
-  renderItems();
+// ── Reset current tab ──────────────────────────────────────────────────────────
+async function resetCurrentTab() {
+  const label = currentTab === 'pastry' ? 'pastry' : 'beverage';
+  if (!confirm(`Mark all ${label} items as available?`)) return;
+  if (currentTab === 'pastry') pastrySoldOut = new Set();
+  else bevSoldOut = new Set();
+  renderCurrentTab();
   await saveChanges();
 }
 
-// ── Status helper ─────────────────────────────────────────────────────────────
+// ── Status helper ──────────────────────────────────────────────────────────────
 function setStatus(msg, type) {
-  const el = document.getElementById('status');
+  const el      = document.getElementById('status');
   el.textContent = msg;
-  el.className = '';
+  el.className   = '';
   if (type === 'loading') el.className = 'status-loading';
   if (type === 'ok')      el.className = 'status-ok';
   if (type === 'error')   el.className = 'status-error';
-  if (!msg) el.style.display = 'none';
-  else      el.style.display = '';
+  el.style.display = msg ? '' : 'none';
 }
 </script>
 </body>

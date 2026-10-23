@@ -14,7 +14,7 @@
   const ADD_PATH   = './addons.json';
   // Real-time availability overrides — written by admin page, read directly from
   // the raw GitHub URL so changes propagate within minutes without a full deploy.
-  const OVERRIDES_URL = 'https://raw.githubusercontent.com/jwal7000/menu-display-beverages/main/public/overrides.json';
+  const OVERRIDES_URL = `https://raw.githubusercontent.com/jwal7000/menu-display-beverages/main/public/overrides-${LOC}.json`;
   const REFRESH    = 5 * 60 * 1000;  // 5 minutes (full menu)
   const OV_REFRESH = 60 * 1000;      // 1 minute  (availability overrides)
 
@@ -50,10 +50,8 @@
 
   // ── Render item row ──────────────────────────────────────────────────────────
   function renderItem(item) {
-    // Apply real-time override if present, else use config's available field
-    const available = overridesData.hasOwnProperty(item.name)
-      ? overridesData[item.name]
-      : item.available;
+    // Apply real-time override: item in sold-out set → unavailable; else use config
+    const available = overridesData.has(item.name) ? false : (item.available !== false);
     const row   = el('div', `item-row${available === false ? ' unavailable' : ''}`);
     const name  = el('span', 'item-name', item.name);
     const lead  = el('span', 'item-leader');
@@ -127,19 +125,16 @@
 
   // ── Main render ──────────────────────────────────────────────────────────────
   let addonsData    = null;
-  let overridesData = {}; // item name → true/false
+  let overridesData = new Set(); // set of sold-out item names
 
   async function fetchOverrides() {
     try {
       const res = await fetch(OVERRIDES_URL + '?t=' + Date.now());
       if (res.ok) {
         const d = await res.json();
-        // Filter to only boolean values (ignore metadata keys starting with _)
-        overridesData = Object.fromEntries(
-          Object.entries(d).filter(([k, v]) => !k.startsWith('_') && typeof v === 'boolean')
-        );
-        if (Object.keys(overridesData).length) {
-          console.log('[bev] overrides active:', overridesData);
+        overridesData = new Set(Array.isArray(d.sold_out) ? d.sold_out : []);
+        if (overridesData.size) {
+          console.log('[bev] overrides active:', [...overridesData]);
         }
       }
     } catch (_) { /* silently keep previous overrides */ }
