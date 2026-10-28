@@ -1,7 +1,7 @@
-/*
- * FDB Beverage Menu — 1920×1080 horizontal display
- * 4-column layout, FDB branding matching the horizontal pastry menu
- */
+/* ─────────────────────────────────────────────────────────────────────────
+   Five Daughters Bakery — Beverage Menu Board
+   Target: 16:9 TV (1920×1080). Styled to match the horizontal pastry menu.
+───────────────────────────────────────────────────────────────────────── */
 
 /* ── Custom Fonts ── */
 @font-face {
@@ -11,203 +11,248 @@
   font-style: normal;
 }
 
-/* ── Variables ─────────────────────────────────────────────────────────────── */
-:root {
-  --pink:          #e8aabb;
-  --pink-dark:     #d48a9e;
-  --pink-light:    rgba(232,170,187,0.25);
-  --bg:            #fdf6fa;
-  --text:          #2a2520;
-  --text-muted:    #8a7a72;
-  --header-h:      10vh;
-  --footer-h:      4vh;
-
-  --font-display:  'Neutraface 2 Display', 'Playfair Display', Georgia, serif;
-  --font-body:     'Inter', sans-serif;
-
-  font-size: calc(0.52vw + 0.52vh);
-}
-
-/* ── Reset ──────────────────────────────────────────────────────────────────── */
+/* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body {
-  width: 100%; height: 100%; overflow: hidden;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-display);
+html { font-size: 0.8333vw; }
+
+/* ── Design tokens (matches pastry menu) ── */
+:root {
+  --pink:            #f59bbb;
+  --pink-dim:        #e07a9e;
+  --pink-pale:       #fce8f1;
+  --plum:            #5c2946;
+  --plum-mid:        #7a3a5e;
+  --teal:            #9cdbd9;
+  --teal-dim:        #6bbfbc;
+  --white:           #ffffff;
+  --off-white:       #fdf6fa;
+
+  --bg:              var(--off-white);
+  --surface:         var(--white);
+  --surface-2:       var(--pink-pale);
+  --border:          #f0cede;
+  --border-light:    #f7dde9;
+
+  --text-primary:    var(--plum);
+  --text-secondary:  var(--plum-mid);
+  --text-muted:      #a0708a;
+
+  --price-color:     var(--plum);
+
+  --font-display:    'Neutraface 2 Display', 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-ui:         'Inter', system-ui, -apple-system, sans-serif;
+
+  --header-h:        9vh;
+  --footer-h:        4.2vh;
+  --pad-x:           1.4vw;
+  --pad-y:           1.4vh;
+  --radius:          0.5vw;
+  --gap:             1.2vw;
 }
 
-/* ── Header ─────────────────────────────────────────────────────────────────── */
+/* ── Base ── */
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Header ── */
 .header {
   position: fixed;
-  top: 0; left: 0; right: 0;
+  inset: 0 0 auto 0;
   height: var(--header-h);
+  z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 2vw;
-  background: var(--bg);
+  background: var(--white);
   border-bottom: 3px solid var(--pink);
-  z-index: 10;
+  box-shadow: 0 2px 12px rgba(245, 155, 187, 0.18);
 }
 
 .header-left {
   flex: 1;
   display: flex;
   align-items: center;
-}
-
-.header-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 3.2vw, 4rem);
-  font-weight: 700;
-  color: var(--pink-dark);
-  letter-spacing: 0.12em;
-  font-style: italic;
+  justify-content: flex-start;
 }
 
 .header-center {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-}
-
-.header-logo {
-  height: calc(var(--header-h) * 0.72);
-  width: auto;
-  display: block;
+  justify-content: center;
 }
 
 .header-right {
   flex: 1;
-  display: flex;
-  justify-content: flex-end;
+}
+
+.header-logo {
+  height: calc(var(--header-h) * 0.78);
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .header-location {
   font-family: var(--font-display);
-  font-size: clamp(0.9rem, 1.6vw, 2rem);
-  color: var(--text-muted);
-  font-style: italic;
+  font-size: clamp(0.8rem, 2vh, 1.4rem);
+  font-weight: 600;
+  color: var(--plum);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-/* ── Main 4-column grid ─────────────────────────────────────────────────────── */
+/* ── Main 4-column grid ── */
 .bev-grid {
   position: fixed;
   top: var(--header-h);
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   bottom: var(--footer-h);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   overflow: hidden;
-  padding: 1.5vh 1.2vw;
-  gap: 0;
+  padding: var(--pad-y) var(--pad-x);
+  gap: var(--gap);
+  align-content: start;
 }
 
-/* ── Column ─────────────────────────────────────────────────────────────────── */
+/* ── Column ── */
 .bev-col {
-  padding: 0 1vw;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 1.8vh;
-  justify-content: space-between;
+  align-content: start;
 }
 
-.bev-col:not(:last-child) {
-  border-right: 1.5px solid var(--pink-light);
+/* ── Section card (matches pastry .section-card) ── */
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(92, 41, 70, 0.07);
+  border-top: 3px solid var(--teal);
+  break-inside: avoid;
+  flex-shrink: 0;
 }
 
-/* ── Section ─────────────────────────────────────────────────────────────────── */
-.bev-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6vh;
+/* ── Section header (pink-pale band, matches pastry) ── */
+.section-header {
+  padding: 1.1vh var(--pad-x) 1vh;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
 }
 
 .section-name {
   font-family: var(--font-display);
-  font-size: clamp(1rem, 2.1vw, 2.8rem);
-  font-weight: 700;
-  color: var(--pink-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  margin-bottom: 0.3vh;
+  font-size: clamp(0.85rem, 1.9vh, 1.5rem);
+  font-weight: 600;
+  color: var(--plum);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ── Temperature sub-label ──────────────────────────────────────────────────── */
+/* ── Section body ── */
+.section-body {
+  padding: 0;
+}
+
+/* ── Temperature sub-label ── */
 .temp-label {
-  display: inline-block;
-  background: var(--pink);
-  color: #fff;
-  padding: 0.15em 0.9em;
-  border-radius: 2em;
-  font-family: var(--font-body);
-  font-size: clamp(0.55rem, 0.9vw, 1.2rem);
+  display: block;
+  font-family: var(--font-ui);
+  font-size: clamp(0.55rem, 1vh, 0.85rem);
   font-weight: 600;
   letter-spacing: 0.12em;
-  text-align: center;
   text-transform: uppercase;
-  margin: 0.3vh 0 0.4vh;
-  width: fit-content;
+  color: var(--text-muted);
+  padding: 0.5vh var(--pad-x) 0.2vh;
 }
 
-/* ── Item rows ──────────────────────────────────────────────────────────────── */
+/* ── Item rows ── */
 .item-row {
   display: flex;
   align-items: baseline;
-  gap: 0.4vw;
-  line-height: 2.1;
+  gap: 0.5vw;
+  padding: 0.65vh var(--pad-x);
+  border-bottom: 1px solid var(--border-light);
 }
+
+.item-row:last-child { border-bottom: none; }
 
 .item-name {
   flex: 1;
   font-family: var(--font-display);
-  font-size: clamp(0.75rem, 1.25vw, 1.8rem);
+  font-size: clamp(0.75rem, 1.7vh, 1.3rem);
   font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-leader {
   flex: 0 1 auto;
-  border-bottom: 1.5px dotted var(--text-muted);
-  margin-bottom: 0.22em;
   min-width: 1vw;
+  border-bottom: 1.5px dotted var(--border);
+  margin-bottom: 0.22em;
+  align-self: flex-end;
 }
 
 .item-price {
   flex-shrink: 0;
-  font-family: var(--font-body);
-  font-size: clamp(0.75rem, 1.2vw, 1.7rem);
-  font-weight: 400;
-  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(0.75rem, 1.7vh, 1.3rem);
+  font-weight: 600;
+  color: var(--pink-dim);
+  white-space: nowrap;
 }
 
-.item-row.unavailable .item-name,
-.item-row.unavailable .item-price {
-  opacity: 0.28;
+/* Unavailable (sold out) state */
+.item-row.unavailable {
+  opacity: 0.6;
+}
+.item-row.unavailable .item-name {
   text-decoration: line-through;
-  text-decoration-color: var(--text-muted);
+  text-decoration-color: var(--border);
+  text-decoration-thickness: 1px;
+}
+.item-row.unavailable .item-price {
+  font-size: clamp(0.55rem, 1.1vh, 0.85rem);
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-/* ── Add-ons section ────────────────────────────────────────────────────────── */
-.addons-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6vh;
+/* ── Add-ons section ── */
+.addons-section .section-body {
+  padding-bottom: 0.6vh;
 }
 
 .addons-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3vh;
+  padding: 0 var(--pad-x);
 }
 
 .addons-items {
   font-family: var(--font-display);
-  font-size: clamp(0.75rem, 1.2vw, 1.7rem);
-  color: var(--text);
+  font-size: clamp(0.7rem, 1.5vh, 1.15rem);
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
@@ -218,26 +263,59 @@ html, body {
 }
 
 .price-note {
-  font-family: var(--font-body);
-  font-size: clamp(0.65rem, 1vw, 1.4rem);
+  font-family: var(--font-ui);
+  font-size: clamp(0.6rem, 1vh, 0.9rem);
   color: var(--text-muted);
-  margin-bottom: 0.2vh;
+  padding: 0.2vh 0 0.2vh;
 }
 
-/* ── Footer ─────────────────────────────────────────────────────────────────── */
+/* ── Footer (matches pastry pink footer) ── */
 .footer {
   position: fixed;
-  bottom: 0; left: 0; right: 0;
+  inset: auto 0 0 0;
   height: var(--footer-h);
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-top: 2px solid var(--pink-light);
+  gap: 1.2vw;
+  background: var(--pink);
+  border-top: 2px solid var(--pink-dim);
   padding: 0 2vw;
 }
 
+.footer-location {
+  font-family: var(--font-display);
+  font-size: clamp(0.55rem, 1.15vh, 0.9rem);
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.footer-sep {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.1vh;
+}
+
 .footer-updated {
-  font-family: var(--font-body);
-  font-size: clamp(0.6rem, 0.9vw, 1.2rem);
-  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: clamp(0.55rem, 1.15vh, 0.9rem);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(1vh); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bev-col {
+  animation: fadeUp 0.45s ease both;
+}
+
+/* ── Accessibility: reduce motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .bev-col { animation: none; }
 }

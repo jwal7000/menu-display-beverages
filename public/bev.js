@@ -30,9 +30,10 @@
   };
 
   // ── Element refs ────────────────────────────────────────────────────────────
-  const locationEl  = document.getElementById('location-name');
-  const footerEl    = document.getElementById('footer-updated');
-  const columns     = [0,1,2,3].map(i => document.getElementById(`col-${i}`));
+  const locationEl       = document.getElementById('location-name');
+  const footerLocationEl = document.getElementById('footer-location');
+  const footerEl         = document.getElementById('footer-updated');
+  const columns          = [0,1,2,3].map(i => document.getElementById(`col-${i}`));
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   function el(tag, cls, text) {
@@ -67,34 +68,43 @@
 
   // ── Render section ───────────────────────────────────────────────────────────
   function renderSection(sec) {
-    const wrap = el('div', 'bev-section');
-    const hdr  = el('div', 'section-name', sec.name);
-    wrap.appendChild(hdr);
+    const card   = el('div', 'section-card');
+    const hdrDiv = el('div', 'section-header');
+    const title  = el('h2',  'section-name', sec.name);
+    hdrDiv.appendChild(title);
+    card.appendChild(hdrDiv);
+
+    const body = el('div', 'section-body');
 
     // Top-level temp_label (e.g. ESPRESSO → HOT OR ICED)
-    if (sec.temp_label) wrap.appendChild(renderTempLabel(sec.temp_label));
+    if (sec.temp_label) body.appendChild(renderTempLabel(sec.temp_label));
 
     // Direct items
     if (sec.items && sec.items.length) {
-      sec.items.forEach(item => wrap.appendChild(renderItem(item)));
+      sec.items.forEach(item => body.appendChild(renderItem(item)));
     }
 
     // Sub-sections (NON ESPRESSO)
     if (sec.sub_sections) {
       sec.sub_sections.forEach(sub => {
-        if (sub.temp_label) wrap.appendChild(renderTempLabel(sub.temp_label));
-        (sub.items || []).forEach(item => wrap.appendChild(renderItem(item)));
+        if (sub.temp_label) body.appendChild(renderTempLabel(sub.temp_label));
+        (sub.items || []).forEach(item => body.appendChild(renderItem(item)));
       });
     }
 
-    return wrap;
+    card.appendChild(body);
+    return card;
   }
 
   // ── Render add-ons static block ──────────────────────────────────────────────
   function renderAddons(addons) {
-    const wrap = el('div', 'bev-section addons-section');
-    const hdr  = el('div', 'section-name', 'ADD-ONS');
-    wrap.appendChild(hdr);
+    const wrap   = el('div', 'section-card addons-section');
+    const hdrDiv = el('div', 'section-header');
+    const hdr    = el('h2',  'section-name', 'ADD-ONS');
+    hdrDiv.appendChild(hdr);
+    wrap.appendChild(hdrDiv);
+    const body = el('div', 'section-body');
+    wrap.appendChild(body);
 
     // Milk
     const milkGroup = el('div', 'addons-group');
@@ -105,7 +115,7 @@
       milkItems.appendChild(row);
     });
     milkGroup.appendChild(milkItems);
-    wrap.appendChild(milkGroup);
+    body.appendChild(milkGroup);
 
     // Syrups
     const syrGroup = el('div', 'addons-group');
@@ -118,7 +128,7 @@
       syrItems.appendChild(span);
     });
     syrGroup.appendChild(syrItems);
-    wrap.appendChild(syrGroup);
+    body.appendChild(syrGroup);
 
     return wrap;
   }
@@ -165,8 +175,10 @@
     if (!res.ok) return;
     const data = await res.json();
 
-    // Set location name
-    if (locationEl) locationEl.textContent = data.location_name || '';
+    // Set location name (matching pastry menu format)
+    const locName = data.location_name || '';
+    if (locationEl)       locationEl.textContent       = locName ? 'Five Daughters Bakery: ' + locName : '';
+    if (footerLocationEl) footerLocationEl.textContent = locName;
 
     // Clear columns
     columns.forEach(col => { if (col) col.innerHTML = ''; });
@@ -192,7 +204,7 @@
 
     // Update footer timestamp
     if (footerEl) {
-      footerEl.textContent = `Updated ${formatTime(data.generated_at)}`;
+      footerEl.textContent = data.generated_at ? 'Last updated ' + formatTime(data.generated_at) : '';
     }
   }
 
