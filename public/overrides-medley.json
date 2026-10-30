@@ -1,6 +1,26 @@
 {
-  "_updated_at": "2026-10-30T17:41:45.698Z",
+  "_updated_at": "2026-10-30T17:43:07.616Z",
   "sold_out_today": [],
   "sold_out_today_expires": null,
-  "sold_out_indefinite": []
+  "sold_out_indefinite": [
+    "Pumpkin Spice Latte",
+    "Spindrift Sparkling Water",
+    "Espresso",
+    "Americano",
+    "Cappuccino",
+    "Latte",
+    "Vanilla Latte",
+    "Caramel Latte",
+    "Honey Latte",
+    "Mocha Latte",
+    "Cold Brew",
+    "Canned Iced Nitro",
+    "Canned Oat Nitro",
+    "Canned Chocolate Oat Nitro",
+    "Matcha Latte",
+    "Chai Tea Latte",
+    "Hot Chocolate",
+    "Steamer",
+    "Fallin' for Toffee Latte"
+  ]
 }
