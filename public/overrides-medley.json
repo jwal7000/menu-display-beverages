@@ -1,4 +1,6 @@
 {
-  "_updated_at": null,
-  "sold_out": []
+  "_updated_at": "2026-10-30T17:41:45.698Z",
+  "sold_out_today": [],
+  "sold_out_today_expires": null,
+  "sold_out_indefinite": []
 }
