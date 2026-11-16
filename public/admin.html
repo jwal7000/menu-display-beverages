@@ -149,6 +149,22 @@
     .item-row.off .item-price { display: none; }
     .item-row.off .sold-out-badge { display: block; }
 
+    /* ── Staff picks form ────────────────────────────────────────────────────── */
+    .pick-intro { font-size: 0.85rem; color: #999; line-height: 1.5; padding: 16px 0 4px; }
+    .pick-card  { background: white; border: 1px solid #f0e8ec; border-radius: 14px; padding: 16px; margin: 14px 0; }
+    .pick-head  { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .pick-head b { color: #d48a9e; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .pick-card select, .pick-card input[type="text"] { padding: 12px; font-size: 1rem; margin-bottom: 8px; }
+    .pick-card textarea {
+      width: 100%; padding: 12px; font-size: 1rem; font-family: inherit; resize: none;
+      border: 2px solid #e8aabb; border-radius: 12px; background: white; height: 76px;
+    }
+    .pick-card textarea:focus { outline: none; border-color: #d48a9e; }
+    .pick-row   { display: flex; gap: 8px; }
+    .pick-row input { flex: 1; min-width: 0; }
+    .pick-count { font-size: 0.75rem; color: #bbb; text-align: right; }
+    .pick-warn  { font-size: 0.8rem; color: #c07090; margin: -2px 0 8px; }
+
     /* ── Toggle switch ───────────────────────────────────────────────────────── */
     .toggle { flex-shrink: 0; position: relative; width: 58px; height: 32px; }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
@@ -218,6 +234,7 @@
   <select id="setup-loc">
     <option value="">Select location…</option>
     <option value="medley">Medley</option>
+    <option value="the-factory">The Factory</option>
     <option value="the-gulch">The Gulch</option>
   </select>
   <button class="btn" onclick="saveSetup()">Save &amp; Continue</button>
@@ -231,6 +248,7 @@
   <select id="location-select">
     <option value="">Select location…</option>
     <option value="medley">Medley</option>
+    <option value="the-factory">The Factory</option>
     <option value="the-gulch">The Gulch</option>
   </select>
   <button class="btn" onclick="saveLocation()">Continue</button>
@@ -261,6 +279,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="pastry" onclick="switchTab('pastry')">Pastry</button>
     <button class="tab-btn"       data-tab="bev"    onclick="switchTab('bev')">Beverages</button>
+    <button class="tab-btn"       data-tab="picks"  onclick="switchTab('picks')" id="tab-picks" hidden>Staff picks</button>
   </div>
 
   <div class="item-list-wrap">
@@ -275,7 +294,7 @@
   </div>
 
   <div class="bottom-links">
-    <span class="change-link" onclick="resetCurrentTab()">Reset tab — all available</span>
+    <span class="change-link" onclick="resetCurrentTab()" id="reset-link">Reset tab — all available</span>
     <span class="change-link" onclick="changeCode()">Change access code</span>
   </div>
 
@@ -288,7 +307,11 @@
 const PIN_SHA256  = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab';
 const BEV_REPO    = 'jwal7000/menu-display-beverages';
 const PASTRY_REPO = 'jwal7000/menu-display-horizontal';
-const LOCATIONS   = { 'medley': 'Medley', 'the-gulch': 'The Gulch' };
+const LOCATIONS   = { 'medley': 'Medley', 'the-factory': 'The Factory', 'the-gulch': 'The Gulch' };
+// Stores whose screen shows staff picks (the portrait v2 page). Other stores don't get the tab.
+const PICKS_LOCATIONS = ['the-factory'];
+const MAX_PICKS       = 3;
+const NOTE_MAX        = 90;
 
 // ── localStorage helpers ───────────────────────────────────────────────────────
 const TOKEN_KEY  = 'fdb_admin_token';
@@ -309,6 +332,8 @@ let bevSoldOutIndefinite = new Set();  // sold out indefinitely (manual reset on
 let pastrySoldOut        = new Set();
 let bevFileSha     = null;
 let pastryFileSha  = null;
+let picks          = [];     // [{ staff, role, item, note }] — the Staff picks tab
+let picksFileSha   = null;
 
 // ── API helpers ────────────────────────────────────────────────────────────────
 function apiHeaders() {
@@ -344,6 +369,7 @@ function showScreen(id) {
 
 function updateLocationDisplay() {
   const name = LOCATIONS[currentLoc] || currentLoc;
+  document.getElementById('tab-picks').hidden = !PICKS_LOCATIONS.includes(currentLoc);
   document.getElementById('pin-location').textContent   = name;
   document.getElementById('admin-location').textContent = name;
 }
@@ -404,6 +430,8 @@ function saveLocation() {
     bevConfig = null; pastryConfig = null;
     bevSoldOutToday = new Set(); bevSoldOutIndefinite = new Set(); pastrySoldOut = new Set();
     bevFileSha = null; pastryFileSha = null;
+    picks = []; picksFileSha = null;
+    if (currentTab === 'picks' && !PICKS_LOCATIONS.includes(l)) switchTab('pastry');
     showScreen('screen-admin');
     loadItems();
   } else {
@@ -439,6 +467,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === tab)
   );
+  document.getElementById('reset-link').hidden = tab === 'picks';
   renderCurrentTab();
 }
 
@@ -452,13 +481,16 @@ async function loadItems() {
   const PASTRY_URL      = `https://raw.githubusercontent.com/${PASTRY_REPO}/main/public/data/${loc}.json`;
   const BEV_OV_API      = `https://api.github.com/repos/${BEV_REPO}/contents/public/overrides-${loc}.json`;
   const PASTRY_OV_API   = `https://api.github.com/repos/${PASTRY_REPO}/contents/public/pastry-overrides-${loc}.json`;
+  const PICKS_API       = `https://api.github.com/repos/${PASTRY_REPO}/contents/public/staff-picks-${loc}.json`;
+  const wantPicks       = PICKS_LOCATIONS.includes(loc);
 
   try {
-    const [bevCfgRes, pastryCfgRes, bevOvRes, pastryOvRes] = await Promise.all([
+    const [bevCfgRes, pastryCfgRes, bevOvRes, pastryOvRes, picksRes] = await Promise.all([
       fetch(BEV_CONFIG_URL + '?t=' + Date.now()),
       fetch(PASTRY_URL     + '?t=' + Date.now()),
       fetch(BEV_OV_API,    { headers: apiHeaders() }),
       fetch(PASTRY_OV_API, { headers: apiHeaders() }),
+      wantPicks ? fetch(PICKS_API, { headers: apiHeaders() }) : null,
     ]);
 
     if (!bevCfgRes.ok)    throw new Error(`Beverage config: HTTP ${bevCfgRes.status}`);
@@ -501,6 +533,16 @@ async function loadItems() {
       }
     }
 
+    // Staff picks
+    picks = [];
+    picksFileSha = null;
+    if (picksRes && picksRes.ok) {
+      const d   = await picksRes.json();
+      picksFileSha = d.sha;
+      const raw = JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g, '')))));
+      picks = (Array.isArray(raw.picks) ? raw.picks : []).slice(0, MAX_PICKS);
+    }
+
     setStatus('', '');
     renderCurrentTab();
 
@@ -513,6 +555,7 @@ async function loadItems() {
 // ── Render ─────────────────────────────────────────────────────────────────────
 function renderCurrentTab() {
   if (currentTab === 'pastry') renderPastry();
+  else if (currentTab === 'picks') renderPicks();
   else renderBev();
 }
 
@@ -700,8 +743,113 @@ function showDurationChoice(itemName, row, cb, label) {
   document.getElementById('dur-cancel').addEventListener('click', () => overlay.remove());
 }
 
-// ── Save changes (both tabs) ───────────────────────────────────────────────────
+// ── Staff picks tab ────────────────────────────────────────────────────────────
+// Up to three picks, each tied to an item on today's pastry menu or the drink list.
+// The screen leaves out a pick whose item isn't on today, and marks it if it sells out.
+function renderPicks() {
+  const list = document.getElementById('item-list');
+  list.innerHTML = '';
+  const intro = document.createElement('p');
+  intro.className = 'pick-intro';
+  intro.textContent = 'Up to three favorites for the menu screen. Pick an item, add your first name and a short note. '
+                    + 'If an item isn\'t on today\'s menu, the screen skips it until it is.';
+  list.appendChild(intro);
+
+  const pastryNames = (pastryConfig?.sections || []).flatMap(s => (s.items || []).map(i => i.name)).filter(Boolean);
+  const drinkNames  = (bevConfig?.sections || []).flatMap(s => [...(s.items || []), ...(s.sub_sections || []).flatMap(x => x.items || [])])
+                                                 .map(i => i.name).filter(Boolean);
+
+  for (let n = 0; n < MAX_PICKS; n++) {
+    const p = picks[n] || (picks[n] = { staff: '', role: '', item: '', note: '' });
+    const card = document.createElement('div');
+    card.className = 'pick-card';
+
+    const head = document.createElement('div');
+    head.className = 'pick-head';
+    const title = document.createElement('b');
+    title.textContent = `Pick ${n + 1}`;
+    const clear = document.createElement('span');
+    clear.className = 'change-link';
+    clear.textContent = 'clear';
+    clear.onclick = () => { picks[n] = { staff: '', role: '', item: '', note: '' }; renderPicks(); };
+    head.append(title, clear);
+
+    const sel = document.createElement('select');
+    const opt = (value, text, parent) => { const o = document.createElement('option'); o.value = value; o.textContent = text; parent.appendChild(o); };
+    opt('', 'Choose an item…', sel);
+    if (p.item && !pastryNames.includes(p.item) && !drinkNames.includes(p.item)) {
+      opt(p.item, `${p.item} (not on today's menu)`, sel);
+    }
+    for (const [label, names] of [["Today's pastry", pastryNames], ['Drinks', drinkNames]]) {
+      if (!names.length) continue;
+      const g = document.createElement('optgroup');
+      g.label = label;
+      names.forEach(name => opt(name, name, g));
+      sel.appendChild(g);
+    }
+    sel.value = p.item;
+    sel.onchange = () => { p.item = sel.value; };
+
+    const row = document.createElement('div');
+    row.className = 'pick-row';
+    const field = (key, placeholder, max) => {
+      const i = document.createElement('input');
+      i.type = 'text'; i.placeholder = placeholder; i.maxLength = max; i.value = p[key] || '';
+      i.oninput = () => { p[key] = i.value; };
+      return i;
+    };
+    row.append(field('staff', 'First name', 20), field('role', 'Role (optional)', 24));
+
+    const note = document.createElement('textarea');
+    note.placeholder = 'Why you love it (optional)';
+    note.maxLength = NOTE_MAX;
+    note.value = p.note || '';
+    const count = document.createElement('div');
+    count.className = 'pick-count';
+    const upd = () => { count.textContent = `${note.value.length}/${NOTE_MAX}`; };
+    note.oninput = () => { p.note = note.value; upd(); };
+    upd();
+
+    card.append(head, sel, row, note, count);
+    list.appendChild(card);
+  }
+}
+
+async function savePicks() {
+  const slots = picks.map(p => ({ staff: (p.staff || '').trim(), role: (p.role || '').trim(),
+                                  item: p.item || '', note: (p.note || '').trim() }));
+  const bad = slots.findIndex(p => (p.item || p.staff || p.role || p.note) && !(p.item && p.staff));
+  if (bad !== -1) { setStatus(`⚠️ Pick ${bad + 1} needs an item and a first name (or tap clear).`, 'error'); return; }
+  const clean = slots.filter(p => p.item);
+  setStatus('Saving…', 'loading');
+  const loc = currentLoc;
+  const ts  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const API = `https://api.github.com/repos/${PASTRY_REPO}/contents/public/staff-picks-${loc}.json`;
+  const body = { _updated_at: new Date().toISOString(), picks: clean };
+  try {
+    const res = await fetch(API, {
+      method:  'PUT',
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        message: `chore: update staff picks [${ts}]`,
+        content: btoa(unescape(encodeURIComponent(JSON.stringify(body, null, 2) + '\n'))),
+        ...(picksFileSha ? { sha: picksFileSha } : {}),
+      }),
+    });
+    const d = await res.json();
+    if (!d.content?.sha) throw new Error(d.message || 'save failed');
+    picksFileSha = d.content.sha;
+    setStatus(clean.length
+      ? `✅ Saved ${clean.length} staff pick${clean.length > 1 ? 's' : ''}. The screen updates within about 5 min.`
+      : '✅ Staff picks cleared. The screen updates within about 5 min.', 'ok');
+  } catch (e) {
+    setStatus('⚠️ Staff picks: ' + e.message, 'error');
+  }
+}
+
+// ── Save changes (pastry + beverage tabs; the Staff picks tab saves on its own) ─
 async function saveChanges() {
+  if (currentTab === 'picks') return savePicks();
   setStatus('Saving…', 'loading');
   const loc = currentLoc;
   const ts  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
