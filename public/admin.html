@@ -164,6 +164,11 @@
     .pick-row input { flex: 1; min-width: 0; }
     .pick-count { font-size: 0.75rem; color: #bbb; text-align: right; }
     .pick-warn  { font-size: 0.8rem; color: #c07090; margin: -2px 0 8px; }
+    .mgr-lock   { text-align: center; padding: 40px 8px; }
+    .mgr-lock h2 { font-size: 1.1rem; color: #5c2946; margin-bottom: 6px; }
+    .mgr-lock p  { font-size: 0.85rem; color: #999; margin-bottom: 18px; line-height: 1.5; }
+    .mgr-lock input { max-width: 220px; margin: 0 auto 12px; display: block; text-align: center; }
+    .mgr-lock .btn { max-width: 220px; margin: 0 auto; }
 
     /* ── Toggle switch ───────────────────────────────────────────────────────── */
     .toggle { flex-shrink: 0; position: relative; width: 58px; height: 32px; }
@@ -358,6 +363,7 @@ let pastryFileSha  = null;
 let picks          = [];     // [{ staff, role, item, note }] — the Staff picks tab
 let picksFileSha   = null;
 let picksExpired   = 0;      // picks in the file that had expired (shown as cleared)
+let managerUnlocked = false;  // manager PIN entered on this page load (Staff picks tab)
 
 // ── API helpers ────────────────────────────────────────────────────────────────
 function apiHeaders() {
@@ -583,7 +589,7 @@ async function loadItems() {
 // ── Render ─────────────────────────────────────────────────────────────────────
 function renderCurrentTab() {
   if (currentTab === 'pastry') renderPastry();
-  else if (currentTab === 'picks') renderPicks();
+  else if (currentTab === 'picks') managerUnlocked ? renderPicks() : renderManagerLock();
   else renderBev();
 }
 
@@ -856,7 +862,68 @@ function expiryLabel(d) {
   return d.toLocaleDateString('en-US', { timeZone: PICKS_TZ, month: 'long', day: 'numeric' });
 }
 
+// ── Manager PIN (Staff picks tab) ─────────────────────────────────────────────
+// The Staff picks tab asks for a separate manager PIN, once per page load. Only a salted
+// PBKDF2 hash is published (manager-pin.json, made by `npm run set-manager-pin`).
+// This is a page anyone can download and a repo anyone can read: the PIN keeps staff out of
+// the tab by default, nothing more. The GitHub token is what actually protects the files.
+
+const b64ToBytes = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+
+async function checkManagerPin(pin) {
+  const res = await fetch('manager-pin.json?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('The manager PIN hasn\'t been set up yet.');
+  const cfg  = await res.json();
+  const key  = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: b64ToBytes(cfg.salt), iterations: cfg.iterations }, key, 256);
+  return btoa(String.fromCharCode(...new Uint8Array(bits))) === cfg.hash;
+}
+
+function renderManagerLock() {
+  const list = document.getElementById('item-list');
+  list.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'mgr-lock';
+  const h = document.createElement('h2');
+  h.textContent = '🔒 Managers only';
+  const p = document.createElement('p');
+  p.textContent = 'Enter the manager PIN to edit staff picks.';
+  const input = document.createElement('input');
+  input.type = 'password'; input.inputMode = 'numeric'; input.pattern = '[0-9]*';
+  input.autocomplete = 'off'; input.placeholder = 'Manager PIN'; input.id = 'mgr-pin-input';
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.textContent = 'Unlock';
+  const go = async () => {
+    const pin = input.value.trim();
+    if (!pin) return;
+    btn.disabled = true;
+    setStatus('Checking…', 'loading');
+    try {
+      if (await checkManagerPin(pin)) {
+        managerUnlocked = true;
+        setStatus('', '');
+        renderPicks();
+      } else {
+        input.value = '';
+        setStatus('⚠️ Incorrect manager PIN.', 'error');
+      }
+    } catch (e) {
+      setStatus('⚠️ ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  btn.onclick = go;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  box.append(h, p, input, btn);
+  list.appendChild(box);
+  input.focus();
+}
+
 async function savePicks() {
+  if (!managerUnlocked) { setStatus('⚠️ Enter the manager PIN first.', 'error'); return; }
   const slots = picks.map(p => ({ staff: (p.staff || '').trim(), role: (p.role || '').trim(),
                                   item: p.item || '', note: (p.note || '').trim() }));
   const bad = slots.findIndex(p => (p.item || p.staff || p.role || p.note) && !(p.item && p.staff));

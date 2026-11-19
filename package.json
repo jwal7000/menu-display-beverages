@@ -1,0 +1,9 @@
+{
+  "name": "menu-display-beverages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "set-manager-pin": "node scripts/set-manager-pin.mjs",
+    "test": "node --test test/"
+  }
+}
