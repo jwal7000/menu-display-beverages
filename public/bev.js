@@ -177,8 +177,9 @@
 
     // Set location name (matching pastry menu format)
     const locName = data.location_name || '';
-    if (locationEl)       locationEl.textContent       = locName ? 'Five Daughters Bakery: ' + locName : '';
-    if (footerLocationEl) footerLocationEl.textContent = locName;
+    const title   = locName ? 'Five Daughters Bakery | ' + locName : '';
+    if (locationEl)       locationEl.textContent       = title;
+    if (footerLocationEl) footerLocationEl.textContent = title;
 
     // Clear columns
     columns.forEach(col => { if (col) col.innerHTML = ''; });
