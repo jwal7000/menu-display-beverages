@@ -313,6 +313,29 @@ const PICKS_LOCATIONS = ['the-factory', 'the-gulch', 'medley'];   // Factory por
 const MAX_PICKS       = 3;
 const NOTE_MAX        = 90;
 
+// Staff picks expire at midnight Central on the 1st of the month after they're saved (the menu
+// changes on the 1st). The screens use the same rule: see pickExpired in the displays.
+const PICKS_TZ = 'America/Chicago';
+
+/** The instant it's next 12:00am on the 1st in Central time, after `now`. */
+function nextMonthStart(now = new Date()) {
+  const [y, m] = now.toLocaleDateString('en-CA', { timeZone: PICKS_TZ }).split('-').map(Number);
+  const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+  const day = `${ny}-${String(nm).padStart(2, '0')}-01`;
+  for (const offset of [5, 6]) {   // CDT, CST
+    const t = new Date(Date.UTC(ny, nm - 1, 1, offset));
+    if (t.toLocaleDateString('en-CA', { timeZone: PICKS_TZ }) === day &&
+        t.toLocaleTimeString('en-GB', { timeZone: PICKS_TZ, hour12: false }) === '00:00:00') return t;
+  }
+  return new Date(Date.UTC(ny, nm - 1, 1, 6));
+}
+
+/** A pick's expiry: its expires_at, or for picks saved before expiry existed, the 1st after the file's save. */
+function pickExpired(p, fileUpdatedAt, now = Date.now()) {
+  const at = p.expires_at || (fileUpdatedAt ? nextMonthStart(new Date(fileUpdatedAt)).toISOString() : null);
+  return !at || Date.parse(at) <= now;
+}
+
 // ── localStorage helpers ───────────────────────────────────────────────────────
 const TOKEN_KEY  = 'fdb_admin_token';
 const LOC_KEY    = 'fdb_admin_loc';
@@ -334,6 +357,7 @@ let bevFileSha     = null;
 let pastryFileSha  = null;
 let picks          = [];     // [{ staff, role, item, note }] — the Staff picks tab
 let picksFileSha   = null;
+let picksExpired   = 0;      // picks in the file that had expired (shown as cleared)
 
 // ── API helpers ────────────────────────────────────────────────────────────────
 function apiHeaders() {
@@ -536,11 +560,15 @@ async function loadItems() {
     // Staff picks
     picks = [];
     picksFileSha = null;
+    picksExpired = 0;
     if (picksRes && picksRes.ok) {
       const d   = await picksRes.json();
       picksFileSha = d.sha;
       const raw = JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g, '')))));
-      picks = (Array.isArray(raw.picks) ? raw.picks : []).slice(0, MAX_PICKS);
+      const all = Array.isArray(raw.picks) ? raw.picks : [];
+      const live = all.filter(p => p && !pickExpired(p, raw._updated_at));
+      picksExpired = all.length - live.length;
+      picks = live.slice(0, MAX_PICKS).map(({ staff, role, item, note }) => ({ staff, role, item, note }));
     }
 
     setStatus('', '');
@@ -745,15 +773,24 @@ function showDurationChoice(itemName, row, cb, label) {
 
 // ── Staff picks tab ────────────────────────────────────────────────────────────
 // Up to three picks, each tied to an item on today's pastry menu or the drink list.
-// The screen leaves out a pick whose item isn't on today, and marks it if it sells out.
+// The screen leaves out a pick whose item isn't on today. Picks clear on the 1st of the month.
 function renderPicks() {
   const list = document.getElementById('item-list');
   list.innerHTML = '';
   const intro = document.createElement('p');
   intro.className = 'pick-intro';
   intro.textContent = 'Up to three favorites for the menu screen. Pick an item, add your first name and a short note. '
-                    + 'If an item isn\'t on today\'s menu, the screen skips it until it is.';
+                    + 'If an item isn\'t on today\'s menu, the screen skips it until it is. '
+                    + `Picks clear automatically at midnight on the 1st (next: ${expiryLabel(nextMonthStart())}).`;
   list.appendChild(intro);
+  if (picksExpired) {
+    const warn = document.createElement('p');
+    warn.className = 'pick-warn';
+    warn.textContent = picks.some(p => p.item)
+      ? `${picksExpired} expired pick${picksExpired > 1 ? 's were' : ' was'} cleared.`
+      : `Last month's picks expired and were cleared. Add this month's below.`;
+    list.appendChild(warn);
+  }
 
   const pastryNames = (pastryConfig?.sections || []).flatMap(s => (s.items || []).map(i => i.name)).filter(Boolean);
   const drinkNames  = (bevConfig?.sections || []).flatMap(s => [...(s.items || []), ...(s.sub_sections || []).flatMap(x => x.items || [])])
@@ -815,12 +852,17 @@ function renderPicks() {
   }
 }
 
+function expiryLabel(d) {
+  return d.toLocaleDateString('en-US', { timeZone: PICKS_TZ, month: 'long', day: 'numeric' });
+}
+
 async function savePicks() {
   const slots = picks.map(p => ({ staff: (p.staff || '').trim(), role: (p.role || '').trim(),
                                   item: p.item || '', note: (p.note || '').trim() }));
   const bad = slots.findIndex(p => (p.item || p.staff || p.role || p.note) && !(p.item && p.staff));
   if (bad !== -1) { setStatus(`⚠️ Pick ${bad + 1} needs an item and a first name (or tap clear).`, 'error'); return; }
-  const clean = slots.filter(p => p.item);
+  const expires = nextMonthStart();
+  const clean = slots.filter(p => p.item).map(p => ({ ...p, expires_at: expires.toISOString() }));
   setStatus('Saving…', 'loading');
   const loc = currentLoc;
   const ts  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -839,8 +881,10 @@ async function savePicks() {
     const d = await res.json();
     if (!d.content?.sha) throw new Error(d.message || 'save failed');
     picksFileSha = d.content.sha;
+    picksExpired = 0;
+    renderPicks();
     setStatus(clean.length
-      ? `✅ Saved ${clean.length} staff pick${clean.length > 1 ? 's' : ''}. The screen updates within about 5 min.`
+      ? `✅ Saved ${clean.length} staff pick${clean.length > 1 ? 's' : ''}. The screen updates within about 5 min; they clear on ${expiryLabel(expires)}.`
       : '✅ Staff picks cleared. The screen updates within about 5 min.', 'ok');
   } catch (e) {
     setStatus('⚠️ Staff picks: ' + e.message, 'error');
