@@ -1,0 +1,8 @@
+{
+  "_comment": "Manager PIN for admin.html Staff picks. Hash only; make a new one with npm run set-manager-pin.",
+  "algorithm": "PBKDF2-SHA256",
+  "iterations": 600000,
+  "salt": "K1oP17TC/NM4ITzOMd7HaA==",
+  "hash": "KjL8+StihNz7D871Rcn7k33u+B/0Rl/1s1t2RmsvmFU=",
+  "updated_at": "2026-11-19T19:18:57.216Z"
+}
